@@ -1,0 +1,15 @@
+{
+  "name": "smart-inventory-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Smart Inventory Assistant - centralised inventory system for a small supermarket",
+  "scripts": {
+    "dev": "node dev.js",
+    "setup": "npm --prefix server install && npm --prefix client install",
+    "seed": "npm --prefix server run seed",
+    "verify": "npm --prefix server run verify",
+    "apitest": "npm --prefix server run apitest",
+    "server": "npm --prefix server run dev",
+    "client": "npm --prefix client run dev"
+  }
+}

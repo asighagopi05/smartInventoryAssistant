@@ -1,0 +1,157 @@
+/* ==========================================================================
+   Smart Inventory Assistant - design tokens
+   ==========================================================================
+   One palette, defined once, used everywhere.
+
+   The brief was "colourful" and "soft" at the same time, which rules out both
+   a single-hue corporate theme and bright saturated accents. The answer is a
+   set of distinct hues held at low saturation and high lightness: each one is
+   clearly its own colour, none of them shout, and they sit together without
+   fighting. Every surface colour is a tint of the same hues so the whole app
+   reads as one system.
+
+   Nothing here is loaded over the network. The type stack is system fonts and
+   the icons are a bundled package, because the demo has to work with no
+   internet connection.
+   ========================================================================== */
+
+:root {
+  /* -- core neutrals: a warm slate, not a cold grey ----------------------- */
+  --ink-900: #1f2430;
+  --ink-700: #3a4254;
+  --ink-500: #626c82;
+  --ink-400: #8b94a8;
+  --ink-300: #b6bdcc;
+  --ink-200: #d9dee8;
+  --ink-100: #eceff5;
+  --ink-50:  #f6f8fb;
+  --paper:   #ffffff;
+  --canvas:  #f4f6fa;
+
+  /* -- the hues. Muted, distinct, deliberately not saturated ------------- */
+  --indigo:      #6b7bd6;
+  --indigo-soft: #eef0fc;
+  --indigo-deep: #4a58ae;
+
+  --teal:        #4fa8a0;
+  --teal-soft:   #e6f5f3;
+  --teal-deep:   #357a74;
+
+  --coral:       #e08370;
+  --coral-soft:  #fdeeea;
+  --coral-deep:  #b85f4d;
+
+  --amber:       #e0a458;
+  --amber-soft:  #fdf3e4;
+  --amber-deep:  #b07c33;
+
+  --sage:        #86ab6e;
+  --sage-soft:   #eef6e9;
+  --sage-deep:   #5f8149;
+
+  --plum:        #a87bb8;
+  --plum-soft:   #f6eefa;
+  --plum-deep:   #7e5590;
+
+  --rose:        #d47b9a;
+  --rose-soft:   #fceef3;
+
+  --sky:         #6aa5d8;
+  --sky-soft:    #eaf3fb;
+
+  /* -- semantic roles ----------------------------------------------------- */
+  --brand:        var(--indigo);
+  --brand-soft:   var(--indigo-soft);
+  --brand-deep:   var(--indigo-deep);
+
+  --success:      var(--sage);
+  --success-soft: var(--sage-soft);
+  --warning:      var(--amber);
+  --warning-soft: var(--amber-soft);
+  --danger:       var(--coral);
+  --danger-soft:  var(--coral-soft);
+  --info:         var(--sky);
+  --info-soft:    var(--sky-soft);
+
+  /* -- role accents. Each account type gets its own colour --------------- */
+  --role-owner:   var(--plum);
+  --role-manager: var(--indigo);
+  --role-staff:   var(--teal);
+
+  /* -- category accents, used on chips, charts and stock rows ------------ */
+  --cat-dairy:         var(--sky);
+  --cat-bakery:        var(--amber);
+  --cat-produce:       var(--sage);
+  --cat-meat:          var(--coral);
+  --cat-frozen:        var(--teal);
+  --cat-beverages:     var(--indigo);
+  --cat-alcohol:       var(--plum);
+  --cat-snacks:        var(--rose);
+  --cat-staples:       var(--amber-deep);
+  --cat-household:     var(--teal-deep);
+  --cat-personal-care: var(--plum-deep);
+  --cat-electronics:   var(--ink-500);
+
+  /* -- type ---------------------------------------------------------------
+     System stack only. A Google Fonts link would leave the demo unstyled the
+     moment the room has no internet.                                        */
+  --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, "Inter", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+  --text-xs:   0.75rem;
+  --text-sm:   0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md:   1.0625rem;
+  --text-lg:   1.25rem;
+  --text-xl:   1.5rem;
+  --text-2xl:  1.9rem;
+  --text-3xl:  2.4rem;
+
+  --weight-normal: 450;
+  --weight-medium: 550;
+  --weight-bold:   650;
+
+  /* -- spacing, on a 4px rhythm ------------------------------------------ */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 2.5rem;
+  --sp-8: 3.5rem;
+
+  /* -- shape and depth. Shadows are tinted with the ink hue, never black -- */
+  --radius-sm: 8px;
+  --radius:    12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+
+  --shadow-xs: 0 1px 2px rgba(31, 36, 48, 0.05);
+  --shadow-sm: 0 2px 6px rgba(31, 36, 48, 0.06);
+  --shadow:    0 6px 18px rgba(31, 36, 48, 0.07);
+  --shadow-lg: 0 16px 40px rgba(31, 36, 48, 0.10);
+
+  --border:       1px solid var(--ink-200);
+  --border-light: 1px solid var(--ink-100);
+
+  --sidebar-w: 254px;
+  --topbar-h:  64px;
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Category helper classes so a chip can be coloured from data alone. */
+.cat-Dairy           { --cat: var(--cat-dairy); }
+.cat-Bakery          { --cat: var(--cat-bakery); }
+.cat-Produce         { --cat: var(--cat-produce); }
+.cat-Meat            { --cat: var(--cat-meat); }
+.cat-Frozen          { --cat: var(--cat-frozen); }
+.cat-Beverages       { --cat: var(--cat-beverages); }
+.cat-Alcohol         { --cat: var(--cat-alcohol); }
+.cat-Snacks          { --cat: var(--cat-snacks); }
+.cat-Staples         { --cat: var(--cat-staples); }
+.cat-Household       { --cat: var(--cat-household); }
+.cat-PersonalCare    { --cat: var(--cat-personal-care); }
+.cat-Electronics     { --cat: var(--cat-electronics); }

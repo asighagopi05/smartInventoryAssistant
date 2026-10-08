@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.local
+dist/
+build/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+.vite/
+coverage/

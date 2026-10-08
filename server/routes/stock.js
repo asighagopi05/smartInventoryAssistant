@@ -1,0 +1,67 @@
+const router = require('express').Router();
+const asyncHandler = require('../utils/asyncHandler');
+const { requireAuth, requireRole } = require('../middleware/auth');
+const { adjustStock, recordCount } = require('../services/stockService');
+const { adjustmentTolerance } = require('../services/stockRules');
+const { StockLog, Product } = require('../models');
+
+router.use(requireAuth);
+
+/** The ledger. Read-only by design: a correction is a new row, never an edit. */
+router.get('/logs', asyncHandler(async (req, res) => {
+  const { product, limit = 100 } = req.query;
+  const filter = product ? { product_id: product } : {};
+  const logs = await StockLog.find(filter)
+    .sort({ createdAt: -1 })
+    .limit(Math.min(Number(limit) || 100, 500))
+    .populate('product_id', 'name sku unit')
+    .populate('user_id', 'name role')
+    .lean();
+  res.json({ logs });
+}));
+
+/** Direct movement: damage, returns, a manual correction within tolerance. */
+router.post('/adjust', requireRole('Manager', 'Staff'), asyncHandler(async (req, res) => {
+  const { productId, quantityChange, entryType = 'adjustment', reason } = req.body;
+  const result = await adjustStock({
+    productId,
+    quantityChange: Number(quantityChange),
+    entryType,
+    reason,
+    source: 'manual',
+    userId: req.user.id,
+  });
+  res.json({
+    product: result.product,
+    stock_before: result.stockBefore,
+    stock_after: result.stockAfter,
+    restock_raised: Boolean(result.restockRequest),
+    restock_request: result.restockRequest,
+  });
+}));
+
+/**
+ * A physical count from the floor. Within tolerance it applies immediately;
+ * beyond it, an adjustment request goes to the Manager rather than silently
+ * rewriting stock.
+ */
+router.post('/count', requireRole('Manager', 'Staff'), asyncHandler(async (req, res) => {
+  const { productId, countedStock, reason } = req.body;
+  const result = await recordCount({
+    productId,
+    countedStock: Number(countedStock),
+    userId: req.user.id,
+    reason,
+  });
+  res.json(result);
+}));
+
+router.get('/tolerance/:id', asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id).lean();
+  res.json({
+    system_stock: product ? product.stock : 0,
+    tolerance: adjustmentTolerance(product ? product.stock : 0),
+  });
+}));
+
+module.exports = router;
