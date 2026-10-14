@@ -9,6 +9,9 @@ import Suppliers from '../pages/Suppliers';
 import Feedback from '../pages/Feedback';
 import QRCodes from '../pages/QRCodes';
 import Team from '../pages/Team';
+import Combos from '../pages/Combos';
+import Forecast from '../pages/Forecast';
+import Performance from '../pages/Performance';
 
 /**
  * The single source of truth for navigation.
@@ -78,9 +81,24 @@ export const ROUTES = [
     component: Team, roles: ['Owner', 'Manager'],
     accent: 'indigo', section: 'Shop',
   },
+  {
+    path: '/combos', label: 'Combos', icon: 'bi-diagram-3-fill',
+    component: Combos, roles: ['Owner', 'Manager'],
+    accent: 'plum', section: 'Insights',
+  },
+  {
+    path: '/forecast', label: 'Forecast', icon: 'bi-graph-up-arrow',
+    component: Forecast, roles: ['Owner', 'Manager'],
+    accent: 'sky', section: 'Insights',
+  },
+  {
+    path: '/performance', label: 'Performance', icon: 'bi-bar-chart-line-fill',
+    component: Performance, roles: ['Owner', 'Manager'],
+    accent: 'sage', section: 'Insights',
+  },
 ];
 
-export const SECTION_ORDER = ['Overview', 'Counter', 'Inventory', 'Shop'];
+export const SECTION_ORDER = ['Overview', 'Counter', 'Inventory', 'Shop', 'Insights'];
 
 export const routesForRole = (role) =>
   ROUTES.filter((r) => r.roles.includes(role));

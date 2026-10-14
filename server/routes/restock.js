@@ -3,6 +3,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { approveRestock, receiveRestock } = require('../services/stockService');
 const { RestockRequest } = require('../models');
+const { recordApprovalForecast } = require('../services/forecastService');
 
 router.use(requireAuth);
 
@@ -35,7 +36,9 @@ router.post('/:id/approve', requireRole('Manager'), asyncHandler(async (req, res
     approve: req.body.approve !== false,
     note: req.body.note,
   });
-  res.json({ request });
+  // Record what the model expected this product to sell, so the approval can be checked later
+  const forecast = request.status === 'approved' ? await recordApprovalForecast(request) : null;
+  res.json({ request, forecast });
 }));
 
 router.post('/:id/receive', requireRole('Manager', 'Staff'), asyncHandler(async (req, res) => {

@@ -5,6 +5,7 @@ const morgan = require('morgan');
 
 const { connectDB, closeDB } = require('./config/db');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
+const { evaluateDuePredictions } = require('./services/forecastService');
 
 const app = express();
 
@@ -33,6 +34,10 @@ app.use('/api/customers', require('./routes/customers'));
 app.use('/api/feedback', require('./routes/feedback'));   // contains the PUBLIC routes
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/combos', require('./routes/combos'));
+app.use('/api/forecast', require('./routes/forecast'));
+app.use('/api/insights', require('./routes/insights'));
+
 
 app.use(notFound);
 app.use(errorHandler);
@@ -45,8 +50,17 @@ const PORT = process.env.PORT || 5000;
     console.log(`[api] SIA API listening on http://localhost:${PORT}`);
   });
 
+  // Fill in actual sales for forecasts whose week has ended: now, then hourly.
+  // A plain timer rather than node-cron: one fixed interval needs no new package.
+  const evaluate = () => evaluateDuePredictions()
+    .then((n) => n && console.log(`[forecast] checked ${n} prediction(s) against actual sales`))
+    .catch((err) => console.error('[forecast] evaluation failed:', err.message));
+  evaluate();
+  const evaluator = setInterval(evaluate, 60 * 60 * 1000);
+
   const shutdown = async (signal) => {
     console.log(`\n[api] ${signal} received, shutting down`);
+    clearInterval(evaluator);
     server.close(async () => { await closeDB(); process.exit(0); });
   };
   process.on('SIGINT', () => shutdown('SIGINT'));

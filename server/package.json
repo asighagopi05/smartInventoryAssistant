@@ -10,7 +10,8 @@
     "start": "node index.js",
     "seed": "node seed/seed.js",
     "verify": "node seed/verify.js",
-    "apitest": "node seed/apitest.js"
+    "apitest": "node seed/apitest.js",
+    "ml-demo": "node seed/mldemo.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

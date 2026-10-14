@@ -162,8 +162,13 @@ router.post('/discussion', asyncHandler(async (req, res) => {
  * machine LAN IP, not localhost. No internet is needed, but the phone and the
  * laptop do need to be on the same network.
  */
-router.get('/qr', requireRole('Manager', 'Owner'), asyncHandler(async (req, res) => {
+router.get('/qr', requireRole('Manager', 'Owner', 'Staff'), asyncHandler(async (req, res) => {
   const { type = 'shop', id } = req.query;
+  // Staff bill at the till, so the receipt QR must work for them; shelf and
+  // shop QRs are printed by management only.
+  if (req.user.role === 'Staff' && type !== 'bill') {
+    throw ApiError.forbidden('Staff can only generate the QR printed on a bill');
+  }
   const base = process.env.PUBLIC_BASE_URL || 'http://localhost:5173';
 
   let target;

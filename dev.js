@@ -1,5 +1,7 @@
-// Starts the API server and the Vite client together: `npm run dev`
+// Starts the API server, the Vite client and the ML service together: `npm run dev`
 const { spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 const procs = [
   ['server', 'server'],
@@ -13,5 +15,18 @@ const procs = [
   });
   return p;
 });
+
+// The ML service is optional: the combo screen reads saved results, so if the
+// venv is missing or Python stops, the rest of the app keeps running.
+const venvPython = path.join(__dirname, 'ml', 'venv', 'Scripts', 'python.exe');
+if (fs.existsSync(venvPython)) {
+  const ml = spawn(`"${venvPython}" -m uvicorn main:app --port 8000`, {
+    cwd: path.join(__dirname, 'ml'), stdio: 'inherit', shell: true,
+  });
+  ml.on('exit', (code) => console.log(`[ml] exited with code ${code}; saved combos still work`));
+  procs.push(ml);
+} else {
+  console.log('[ml] ml/venv not found, skipping the ML service (see ml/README.md)');
+}
 
 process.on('SIGINT', () => procs.forEach((p) => p.kill()));

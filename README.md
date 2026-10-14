@@ -31,10 +31,18 @@ cd ../server && npm run seed
 # 3. Check the data is sound  (15 checks against the live database)
 npm run verify
 
-# 4. Run it, in two terminals
-cd server && npm run dev     # API      http://localhost:5000
-cd client && npm run dev     # Screens  http://localhost:5173
+# 4. Set up the ML service  (needs internet once; see ml/README.md)
+cd ../ml && python -m venv venv && venv\Scripts\activate && pip install -r requirements.txt
+
+# 5. Run everything from the project folder  (API :5000, screens :5173, ML :8000)
+cd .. && npm run dev
+
+# 6. See every ML feature checked and explained  (with step 5 running)
+npm run ml-demo
 ```
+
+The ML service is optional at runtime: the Combos, Forecast and Performance screens read saved
+results, so they still work if Python is not running. Only their **Run** buttons need it.
 
 ### Demo logins
 
@@ -65,10 +73,12 @@ it demonstrates the same thing.
 
 ```
 server/    Express + Mongoose API
-  models/      the 10 collections, plus an internal counter
+  models/      the 10 collections, plus internal ones: counter, saved combos, predictions
   routes/      REST endpoints, all role-guarded
   services/    stockService.js — the one place stock ever moves
-  seed/        seed.js, verify.js, apitest.js, and the source data
+               forecastService.js — sales series, forecasts, and checking them against real sales
+  seed/        seed.js, verify.js, apitest.js, mldemo.js, and the source data
+ml/        FastAPI + mlxtend + scikit-learn: combos (Apriori) and the sales forecast
 client/    React + Vite
   src/pages/       one file per screen
   src/config/      navigation.jsx — sidebar AND router come from here
@@ -83,6 +93,7 @@ docs/      PLAN.md (design) and STUDY-GUIDE.md (how it works + demo script)
 | `npm run seed` | Drops and rebuilds the database. Deterministic — identical every run, except that the dates move forward in whole weeks so the history always ends in the past. |
 | `npm run verify` | 15 checks on the data: ledger reconciliation, no duplicate open requests, no customer passwords, every bill adds up. |
 | `npm run apitest` | 36 checks against a running API, walking the plan's verification list. |
+| `npm run ml-demo` | 13 checks of the Phase 2 ML features against a running API, explaining each in plain English. Also works with Python stopped, checking the saved results. |
 | `npm run dev` | Starts with auto-reload. |
 
 ---
@@ -108,9 +119,12 @@ stock levels are generated, because the source has none.
 
 ## Not built yet
 
-The machine-learning service (association rules over the same sales), the sales forecast, the staff
-issues screen and the discussion board. The `issues` collection already exists and is populated —
-only its screen is outstanding.
+Phase 3: the staff issues screen, staff tasks, the discussion board, the adjustment-approval screen,
+the full notification history and the diagrams. The `issues` collection already exists and is
+populated — only its screen is outstanding.
+
+Phase 2 (the ML) is done: see [`docs/ML-BUILD-LOG.md`](docs/ML-BUILD-LOG.md) for how it was built
+and tested.
 
 Nothing appears in the menu that does not have a working screen behind it. That is deliberate: the
 sidebar and the router are generated from the same config, so a dead link is not possible.
