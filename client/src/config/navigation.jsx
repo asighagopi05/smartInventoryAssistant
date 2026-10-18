@@ -15,6 +15,7 @@ import Performance from '../pages/Performance';
 import Issues from '../pages/Issues';
 import Tasks from '../pages/Tasks';
 import Discussion from '../pages/Discussion';
+import Notifications from '../pages/Notifications';
 
 /**
  * The single source of truth for navigation.
@@ -32,6 +33,11 @@ export const ROUTES = [
     path: '/', label: 'Dashboard', icon: 'bi-grid-1x2-fill',
     component: Dashboard, roles: ['Owner', 'Manager', 'Staff'],
     accent: 'indigo', section: 'Overview',
+  },
+  {
+    path: '/notifications', label: 'Notifications', icon: 'bi-bell-fill',
+    component: Notifications, roles: ['Owner', 'Manager', 'Staff'],
+    accent: 'amber', section: 'Overview',
   },
   {
     path: '/billing', label: 'Billing', icon: 'bi-receipt',

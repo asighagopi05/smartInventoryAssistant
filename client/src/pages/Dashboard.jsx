@@ -95,6 +95,20 @@ export default function Dashboard() {
           value={totals.customers.toLocaleString('en-IN')}
           foot="phone-keyed, no accounts"
         />
+        <Link to="/issues" className="stat-link">
+          <StatTile
+            tone="plum" icon="bi-flag-fill" label="Open issues"
+            value={totals.open_issues}
+            foot="flagged on the floor, not yet resolved"
+          />
+        </Link>
+        <Link to="/tasks" className="stat-link">
+          <StatTile
+            tone="sky" icon="bi-check2-square" label="Open tasks"
+            value={totals.open_tasks}
+            foot="handed out and not yet done"
+          />
+        </Link>
       </div>
 
       <div className="row g-4">

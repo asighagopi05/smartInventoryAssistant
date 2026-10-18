@@ -392,17 +392,86 @@ async function discussion({ owner, manager, staff, staff2 }) {
   check('Discussion posts never show up as customer feedback', !fb.body.notes.some((x) => (x.body || '').startsWith('[test]')));
 }
 
-async function notificationCentre() {}
+// ---------------------------------------------------------------------------
+// 3.4  Notification centre
+// ---------------------------------------------------------------------------
+async function allPages(token, extra = '') {
+  const seen = [];
+  let after = null;
+  for (let i = 0; i < 100; i += 1) {
+    const r = await call(`/notifications?limit=7${extra}${after ? `&after=${encodeURIComponent(after)}` : ''}`, { token });
+    if (r.status !== 200) throw new Error(`notifications page failed: ${JSON.stringify(r.body)}`);
+    seen.push(...r.body.notifications);
+    after = r.body.next;
+    if (!after) break;
+  }
+  return seen;
+}
+
+async function notificationCentre({ manager, staff, staff2 }) {
+  heading('3.4  Notification centre: the full history, not the last 20');
+
+  const one = await call('/notifications?limit=200', { token: manager.token });
+  const paged = await allPages(manager.token);
+  const ids = paged.map((n) => n._id);
+  check('Paging through the history returns every notification exactly once',
+    new Set(ids).size === ids.length && (one.body.has_more || ids.length === one.body.notifications.length),
+    `${ids.length} via pages of 7, ${one.body.notifications.length} in one page of 200`);
+  check('Newest first, across page boundaries',
+    paged.every((n, i) => i === 0 || new Date(paged[i - 1].createdAt) >= new Date(n.createdAt)));
+
+  const unreadPaged = await allPages(manager.token, '&unread=1');
+  check('The unread count is the true total, not just the latest page',
+    one.body.unread === unreadPaged.length && unreadPaged.every((n) => !n.read),
+    `count ${one.body.unread}, listed ${unreadPaged.length}`);
+
+  const floor = await call('/notifications?limit=200&group=floor', { token: manager.token });
+  check('Filtering by group returns only that group',
+    floor.body.notifications.length > 0
+      && floor.body.notifications.every((n) => ['issue_raised', 'issue_updated', 'task_assigned', 'task_done', 'discussion_reply'].includes(n.type)),
+    `${floor.body.notifications.length} floor notification(s)`);
+  const badGroup = await call('/notifications?group=weather', { token: manager.token });
+  const badCursor = await call('/notifications?after=yesterday', { token: manager.token });
+  check('A bad group or cursor is a 400, not an empty list', badGroup.status === 400 && badCursor.status === 400);
+
+  const staffAll = await call('/notifications?limit=200', { token: staff.token });
+  check('Staff never see notifications meant for the Manager',
+    staffAll.body.notifications.every((n) => n.for_role !== 'Manager'));
+
+  const mineOnly = staffAll.body.notifications.find((n) => String(n.for_user_id) === String(staff.user.id));
+  const poke = mineOnly && await call(`/notifications/${mineOnly._id}/read`, { method: 'POST', token: staff2.token });
+  check('Nobody can mark someone else\'s notification as read (404)', poke?.status === 404, mineOnly ? `got ${poke?.status}` : 'no personal notification to test with');
+
+  const before = (await call('/notifications?limit=1', { token: staff2.token })).body.unread;
+  const target = (await call('/notifications?limit=1&unread=1', { token: staff2.token })).body.notifications[0];
+  if (target) {
+    await call(`/notifications/${target._id}/read`, { method: 'POST', token: staff2.token });
+    const after = await call('/notifications?limit=200&unread=1', { token: staff2.token });
+    check('Marking one read lowers the count by one and drops it from Unread',
+      after.body.unread === before - 1 && !after.body.notifications.some((n) => n._id === target._id),
+      `${before} -> ${after.body.unread}`);
+  } else {
+    check('Marking one read lowers the count by one and drops it from Unread', false, 'staff2 had nothing unread to test with');
+  }
+
+  const all = await call('/notifications/read-all', { method: 'POST', token: staff2.token });
+  const zero = await call('/notifications?limit=1', { token: staff2.token });
+  check('Mark all read clears the count', all.status === 200 && zero.body.unread === 0, `${all.body?.marked} marked`);
+}
 
 /** Delete what this script created on the floor boards, and what it notified. */
 async function removeTestRecords() {
   await mongoose.connect(process.env.MONGODB_URI);
-  const { Issue, Task, Note, Notification } = require('../models');
+  const { Issue, Task, Note, Notification, Product, RestockRequest } = require('../models');
   const test = /^\[test\]/;
+  // The test product's requests stay (its ledger rows point at them); only the
+  // alerts about them are removed from people's bells.
+  const testProducts = await Product.find({ name: 'Phase 3 Test Product' }).distinct('_id');
   const ids = [
     ...await Issue.find({ title: test }).distinct('_id'),
     ...await Task.find({ title: test }).distinct('_id'),
     ...await Note.find({ type: 'discussion', body: test }).distinct('_id'),
+    ...await RestockRequest.find({ product_id: { $in: testProducts } }).distinct('_id'),
   ];
   const n = await Notification.deleteMany({ ref_id: { $in: ids } });
   const i = await Issue.deleteMany({ title: test });

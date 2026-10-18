@@ -1,18 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { api, longDate } from '../api/client';
-
-const TONE = {
-  restock_request: ['bi-arrow-repeat', 'var(--amber)'],
-  restock_approved: ['bi-check2-circle', 'var(--sky)'],
-  stock_received: ['bi-box-seam', 'var(--sage)'],
-  adjustment_request: ['bi-sliders', 'var(--plum)'],
-  bad_review: ['bi-star', 'var(--coral)'],
-  low_stock: ['bi-exclamation-triangle', 'var(--amber)'],
-  issue_raised: ['bi-flag', 'var(--coral)'],
-};
+import { toneFor, NOTIFICATIONS_CHANGED } from './notificationMeta';
 
 export default function NotificationBell() {
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
@@ -20,7 +12,7 @@ export default function NotificationBell() {
 
   const load = async () => {
     try {
-      const data = await api.get('/notifications?limit=20');
+      const data = await api.get('/notifications?limit=12');
       setItems(data.notifications);
       setUnread(data.unread);
     } catch { /* the bell is not worth an error state */ }
@@ -31,8 +23,12 @@ export default function NotificationBell() {
     // Notifications are written by their triggers on the server, so the bell
     // polls rather than being told what to show.
     const t = setInterval(load, 15000);
-    return () => clearInterval(t);
+    window.addEventListener(NOTIFICATIONS_CHANGED, load);
+    return () => { clearInterval(t); window.removeEventListener(NOTIFICATIONS_CHANGED, load); };
   }, []);
+
+  // The notification centre marks things read; refresh the count on arrival.
+  useEffect(() => { setOpen(false); load(); }, [location.pathname]);
 
   useEffect(() => {
     const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -45,21 +41,20 @@ export default function NotificationBell() {
     load();
   };
 
+  const openOne = (n) => {
+    setOpen(false);
+    if (!n.read) api.post(`/notifications/${n._id}/read`).then(load).catch(() => {});
+  };
+
   return (
     <div style={{ position: 'relative' }} ref={ref}>
-      <button className="icon-btn" onClick={() => setOpen((v) => !v)} title="Notifications">
+      <button className="icon-btn" onClick={() => setOpen((v) => !v)} title="Notifications" aria-label={`Notifications, ${unread} unread`}>
         <i className="bi bi-bell-fill" />
-        {unread > 0 && <span className="dot-badge">{unread > 9 ? '9+' : unread}</span>}
+        {unread > 0 && <span className="dot-badge">{unread > 99 ? '99+' : unread}</span>}
       </button>
 
       {open && (
-        <div
-          className="card-soft"
-          style={{
-            position: 'absolute', right: 0, top: 46, width: 380, zIndex: 60,
-            boxShadow: 'var(--shadow-lg)', maxHeight: 460, display: 'flex', flexDirection: 'column',
-          }}
-        >
+        <div className="card-soft bell-panel">
           <div className="card-head" style={{ padding: 'var(--sp-4)' }}>
             <div>
               <h3 style={{ fontSize: 'var(--text-base)' }}>Notifications</h3>
@@ -80,26 +75,16 @@ export default function NotificationBell() {
             )}
 
             {items.map((n) => {
-              const [icon, color] = TONE[n.type] || ['bi-info-circle', 'var(--ink-400)'];
+              const [icon, color] = toneFor(n.type);
               return (
                 <Link
                   key={n._id}
-                  to={n.link || '/'}
-                  onClick={() => setOpen(false)}
-                  style={{
-                    display: 'flex', gap: 'var(--sp-3)', padding: 'var(--sp-4)',
-                    borderBottom: 'var(--border-light)', color: 'inherit',
-                    background: n.read ? 'transparent' : 'var(--ink-50)',
-                  }}
+                  to={n.link || '/notifications'}
+                  onClick={() => openOne(n)}
+                  className="bell-item"
+                  style={{ background: n.read ? 'transparent' : 'var(--indigo-soft)' }}
                 >
-                  <span style={{
-                    flex: '0 0 auto', width: 32, height: 32, borderRadius: 9,
-                    display: 'grid', placeItems: 'center',
-                    background: `color-mix(in srgb, ${color} 16%, white)`, color,
-                  }}
-                  >
-                    <i className={`bi ${icon}`} />
-                  </span>
+                  <span className="note-icon" style={{ '--tone': color }}><i className={`bi ${icon}`} /></span>
                   <span style={{ minWidth: 0 }}>
                     <strong style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--ink-900)' }}>
                       {n.title}
@@ -107,7 +92,7 @@ export default function NotificationBell() {
                     <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-500)', display: 'block' }}>
                       {n.body}
                     </span>
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-300)' }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-400)' }}>
                       {longDate(n.createdAt)}
                     </span>
                   </span>
@@ -115,6 +100,10 @@ export default function NotificationBell() {
               );
             })}
           </div>
+
+          <Link to="/notifications" className="bell-all" onClick={() => setOpen(false)}>
+            See all notifications <i className="bi bi-arrow-right ms-1" />
+          </Link>
         </div>
       )}
     </div>

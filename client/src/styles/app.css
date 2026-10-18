@@ -228,6 +228,8 @@ a:hover { color: var(--brand); }
   transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
 }
 .stat:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.stat-link, .stat-link:hover { color: inherit; display: block; }
+.stat-link .stat { height: 100%; }
 
 /* A soft wash of the tile hue, so the colour reads without shouting. */
 .stat::after {
@@ -593,6 +595,27 @@ a:hover { color: var(--brand); }
 }
 .list-row-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); justify-content: flex-end; flex: 0 0 auto; max-width: 46%; }
 .list-row.unread { background: var(--indigo-soft); }
+
+.note-icon {
+  flex: 0 0 auto; width: 38px; height: 38px; border-radius: 10px;
+  display: grid; place-items: center; font-size: 1.05rem;
+  background: color-mix(in srgb, var(--tone) 16%, white); color: var(--tone);
+}
+
+.bell-panel {
+  position: absolute; right: 0; top: 50px; z-index: 60;
+  width: min(420px, calc(100vw - 24px)); max-height: min(560px, calc(100vh - 90px));
+  display: flex; flex-direction: column; box-shadow: var(--shadow-lg);
+}
+.bell-item {
+  display: flex; gap: var(--sp-3); padding: var(--sp-4);
+  border-bottom: var(--border-light); color: inherit;
+}
+.bell-item:hover { filter: brightness(0.98); color: inherit; }
+.bell-all {
+  display: block; text-align: center; padding: var(--sp-3);
+  border-top: var(--border); font-weight: var(--weight-medium); font-size: var(--text-sm);
+}
 
 .check-pill {
   display: inline-flex; align-items: center; gap: var(--sp-2);
