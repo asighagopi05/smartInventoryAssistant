@@ -41,7 +41,7 @@ export default function Restock() {
       <Card
         bodyClass=""
         actions={(
-          <div className="d-flex gap-2">
+          <div className="d-flex flex-wrap gap-2">
             {['open', 'pending', 'approved', 'received', 'all'].map((s) => (
               <button
                 key={s}
@@ -84,7 +84,7 @@ export default function Restock() {
                       <div className="td-strong">{r.product_id?.name || '—'}</div>
                       <div className="td-muted">{r.product_id?.sku}</div>
                     </td>
-                    <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{longDate(r.createdAt)}</td>
+                    <td className="td-muted" style={{ minWidth: 120 }}>{longDate(r.createdAt)}</td>
                     <td className="text-end num td-strong">{r.stock_at_request}</td>
                     <td className="text-end num td-muted">{r.threshold_at_request}</td>
                     <td className="text-end num td-strong">{r.qty}</td>

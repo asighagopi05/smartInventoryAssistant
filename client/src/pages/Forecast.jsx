@@ -7,7 +7,7 @@ import { Card, Chip, StatTile, Loading, ErrorNote, EmptyState, CategoryChip, Sta
 import { api, longDate, shortDate } from '../api/client';
 
 const pct = (n) => (n == null ? '—' : `${(n * 100).toFixed(1)}%`);
-const AXIS = { tick: { fontSize: 11, fill: 'var(--ink-400)' }, axisLine: false, tickLine: false };
+const AXIS = { tick: { fontSize: 13, fill: 'var(--ink-400)' }, axisLine: false, tickLine: false };
 
 /** Daily sales for the last 8 weeks, then the model's next 7 days. Remounted per product via `key`. */
 function ProductChart({ productId }) {
@@ -142,7 +142,7 @@ export default function Forecast() {
                   <XAxis dataKey="week" {...AXIS} />
                   <YAxis {...AXIS} />
                   <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 14 }} />
                   <Bar dataKey="Actual" fill="#626c82" radius={[3, 3, 0, 0]} />
                   <Bar dataKey="Model" fill="#6b7bd6" radius={[3, 3, 0, 0]} />
                   <Bar dataKey="Simple average" fill="#e0a458" radius={[3, 3, 0, 0]} />

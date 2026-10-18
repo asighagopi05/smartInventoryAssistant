@@ -99,14 +99,16 @@
                "Helvetica Neue", Arial, sans-serif;
   --font-mono: "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
 
-  --text-xs:   0.75rem;
-  --text-sm:   0.8125rem;
-  --text-base: 0.9375rem;
-  --text-md:   1.0625rem;
-  --text-lg:   1.25rem;
-  --text-xl:   1.5rem;
-  --text-2xl:  1.9rem;
-  --text-3xl:  2.4rem;
+  /* Sized up on purpose: the smallest text on any screen is 14px, body 17px.
+     The earlier 12-13px labels were hard to read at the till.             */
+  --text-xs:   0.875rem;
+  --text-sm:   0.9375rem;
+  --text-base: 1.0625rem;
+  --text-md:   1.1875rem;
+  --text-lg:   1.375rem;
+  --text-xl:   1.625rem;
+  --text-2xl:  2.1rem;
+  --text-3xl:  2.6rem;
 
   --weight-normal: 450;
   --weight-medium: 550;
@@ -136,8 +138,8 @@
   --border:       1px solid var(--ink-200);
   --border-light: 1px solid var(--ink-100);
 
-  --sidebar-w: 254px;
-  --topbar-h:  64px;
+  --sidebar-w: 272px;
+  --topbar-h:  70px;
 
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 }

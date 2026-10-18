@@ -14,7 +14,7 @@ const GROUP_STYLE = {
   unrated: { tone: 'sky', chip: 'neutral', color: '#9aa3b5', icon: 'bi-question-circle' },
 };
 const ORDER = ['star', 'fix', 'pair', 'delist', 'unrated'];
-const AXIS = { tick: { fontSize: 11, fill: 'var(--ink-400)' }, axisLine: false, tickLine: false };
+const AXIS = { tick: { fontSize: 13, fill: 'var(--ink-400)' }, axisLine: false, tickLine: false };
 
 function PointTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
@@ -82,7 +82,7 @@ export default function Performance() {
                   <ReferenceLine x={data.rules.median_units} stroke="var(--ink-300)" strokeDasharray="4 4" />
                   <ReferenceLine y={data.rules.good_rating} stroke="var(--ink-300)" strokeDasharray="4 4" />
                   <Tooltip content={<PointTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 14 }} />
                   {ORDER.filter((g) => g !== 'unrated').map((g) => (
                     <Scatter
                       key={g}
