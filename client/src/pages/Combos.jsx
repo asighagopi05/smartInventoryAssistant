@@ -70,6 +70,9 @@ export default function Combos() {
           <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
             <Chip tone="brand">{combos.rules.length} combos</Chip>
             <Chip tone="info">{combos.basket_count.toLocaleString('en-IN')} bills analysed</Chip>
+            {combos.rules[0]?.p_value != null && (
+              <Chip tone="neutral" icon="bi-shield-check">Each passed a 1-in-100 coincidence test</Chip>
+            )}
             <span className="td-muted">
               Last run {longDate(combos.generated_at)}
               {combos.generated_by?.name && ` by ${combos.generated_by.name}`}
@@ -138,6 +141,11 @@ export default function Combos() {
                       <Chip tone="neutral">Confidence {pct(r.confidence)}</Chip>
                       <Chip tone="neutral">Lift {r.lift.toFixed(1)}×</Chip>
                       <Chip tone="neutral">Support {(r.support * 100).toFixed(2)}%</Chip>
+                      {r.p_value != null && (
+                        <Chip tone="neutral">
+                          Chance {r.p_value < 0.0001 ? '< 0.01%' : `${(r.p_value * 100).toFixed(2)}%`}
+                        </Chip>
+                      )}
                     </div>
                   </div>
                 </div>

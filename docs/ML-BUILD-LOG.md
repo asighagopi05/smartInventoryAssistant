@@ -17,6 +17,7 @@ Built 10–11 Oct 2026. To see it all working yourself, run `npm run dev` and th
 | G. Building the rest | 2.3–2.6 | ✅ |
 | H. Testing | all | ✅ 13/13 |
 | I. A bug the tests caught | 2.5 | ✅ fixed |
+| J. Improving accuracy | 2.2, 2.5 | ✅ |
 
 ---
 
@@ -307,13 +308,88 @@ The final demo output, Python running:
 
 ---
 
+## J. Improving accuracy (15 Oct 2026)
+
+**Why:** to check how much better each model could get, and keep only changes that measurably help.
+The scripts are in `ml/experiments/`; run them from that folder with the venv's Python.
+
+### Combos: are they real, or chance?
+
+**How it was tested:** mine rules on the **earlier 70%** of bills only, then check each rule on the
+**later 30%**, which it never saw. A rule *holds up* if the pair still appears together more often than
+chance (lift > 1) in the later bills.
+
+```
+python combo_holdout.py
+train bills 6887, test bills 2952, rules mined 400
+  current (lift > 1, conf >= 0.2)        rules  400  hold up in later bills  92.0%
+  lift >= 1.2                            rules  354  hold up in later bills  96.0%
+  Fisher p < 0.01                        rules  315  hold up in later bills  96.8%
+  Fisher p < 0.05 / rules (Bonferroni)   rules  228  hold up in later bills  99.1%
+  REJECTED by p < 0.01                   rules   85  hold up in later bills  74.1%
+```
+
+**Decision: keep a rule only if Fisher's exact test gives p < 0.01**, meaning less than a 1-in-100
+chance that this many shared bills is coincidence. 1 in 12 of the old rules did not hold up; with the
+test, about 1 in 30 don't. Bonferroni was more reliable still, but dropped 172 rules, most of them good.
+Every combo card now shows its chance figure.
+
+After the change, through the app: **296 combos instead of 360**. The weakest kept now has lift 1.16
+(was 1.02). Atta → Sugar is kept with p = 1.5 × 10⁻³², so it is as far from chance as a rule can be.
+
+### Forecast: how good can it get?
+
+The app's check uses 3 hidden weeks. Every method was re-run on **8** to see real differences.
+
+```
+python fc_experiment.py 8
+method                       OVERALL  last3
+blend LR + naive 50/50        80.3%   81.6%
+current: LR per product       80.3%   81.6%
+naive: all history avg        80.2%   81.6%
+pooled weekday, last 56d      80.1%   81.5%
+naive: last 28 days avg       79.8%   80.9%
+
+python fc_daily.py
+WEEKLY total per product, 8 weeks:  oracle ceiling 82.0%
+DAILY accuracy                       per product/day   whole shop/day
+  current LR per product                  53.2%           86.1%
+  flat 28-day avg                         50.5%           77.6%
+  pooled: product avg x shop weekday      54.9%           86.1%
+```
+
+**What this showed:**
+- **For a week's total, every sensible method scores about 80%.** A 7-day week contains each weekday
+  exactly once, so the weekday pattern cannot change a weekly total. The old model was, in effect, an
+  average over all history, and it tied with exactly that.
+- **The ceiling is 82.0%.** An "oracle" that knows each product's true long-run average, which no
+  real model could know, scores only 82.0%. The rest is randomness: which baskets fall in which week.
+  So the model was already within 1.7 points of the best possible.
+- **Daily accuracy could improve.** Fitting a weekday shape per product meant learning it from about
+  13 days per weekday, mostly noise for a product that sells a unit a day.
+
+**Decision:** LinearRegression now learns the weekday shape **once, from the whole shop's sales**,
+and each product's forecast is its own average × that shape. Day accuracy per product goes from
+53.2% to **54.9%**; week totals are unchanged at 81.6% (last 3 weeks), still ahead of the 4-week
+average at 80.9%.
+
+> **For the review:** the honest answer to "can it be more accurate?" is that the weekly forecast is
+> within 2 points of the mathematical best for this data. Real shop data would have things this seed
+> lacks, such as festivals, price changes and a real trend, and those are what a better model could use.
+
+**After the change:** `npm run ml-demo` 13/13, client build ✓.
+
+---
+
 ## Known limits
 
 - **The forecast's gain over a simple average is small** (0.7 points overall). It is reported
-  honestly on the screen next to the baseline rather than hidden.
+  honestly on the screen next to the baseline rather than hidden. Section J shows why: it is within
+  2 points of the best any model could do on this data.
 - **52 products show as running out this week.** That reflects the seeded stock levels; most
   already have a restock request open, and the screen shows which don't.
-- **Some combos are based on about 30 bills**, enough to show but small enough that a few could be chance.
+- **Some combos are based on about 30 bills.** Each one now passes a 1-in-100 coincidence test, and
+  about 1 in 30 still may not hold up on new bills.
 - **Combos use product names**, which are frozen on each bill. Renaming a product would split its
   history in two.
 - **A live forecast is only checked if the shop is used during its week.** If nothing is billed, it

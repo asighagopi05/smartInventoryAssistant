@@ -18,6 +18,8 @@ const ruleSchema = new mongoose.Schema(
     // Share of all bills each side appears in, and the ranking built from them
     if_support: { type: Number, required: true },
     also_support: { type: Number, required: true },
+    // Chance this many shared bills is coincidence (Fisher's exact test); only < 0.01 is kept
+    p_value: { type: Number, default: null },
     slow_strong: { type: Boolean, default: false },
     score: { type: Number, required: true },
   },

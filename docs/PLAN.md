@@ -679,7 +679,7 @@ from real `Sale` documents; the service returns rules. **Express caches the last
 so the combo screen still renders if Python is not running — a live-demo safeguard.
 
 **2.2 Apriori combos.** `mlxtend`, cards showing **support, confidence, lift and basket count**, each
-phrased as its own explanation: *"73% of baskets with flour also contain sugar — 6.9× more often than
+phrased as its own explanation: *"29% of baskets with flour also contain sugar — 8.5× more often than
 chance, across 49 baskets."* Apriori is explainable by construction; the output *is* the explanation.
 
 > **Recorded finding: `min_support` must be ≈0.003.** Measured support for the good rules is

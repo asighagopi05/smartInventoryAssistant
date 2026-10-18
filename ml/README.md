@@ -30,8 +30,8 @@ project root checks every ML feature end to end and explains each one as it goes
 | Endpoint | Model | Used by |
 |---|---|---|
 | `GET /health` | – | `npm run ml-demo`, `dev.js` |
-| `POST /combos` | Apriori (`mlxtend`) | Combos screen |
-| `POST /forecast` | LinearRegression on day of week (`scikit-learn`) | Forecast screen |
+| `POST /combos` | Apriori (`mlxtend`) + Fisher's exact test (`scipy`) | Combos screen |
+| `POST /forecast` | Product average × shop weekday shape (`scikit-learn` LinearRegression) | Forecast screen |
 
 ## Files
 
