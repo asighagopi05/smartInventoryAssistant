@@ -23,7 +23,7 @@ const errorHandler = (err, _req, res, _next) => {
     status = 409;
     const field = Object.keys(err.keyPattern || {})[0] || 'value';
     message = field === 'product_id'
-      ? 'A pending restock request already exists for this product'
+      ? 'An open request of this kind already exists for this product'
       : `That ${field} is already in use`;
   }
 

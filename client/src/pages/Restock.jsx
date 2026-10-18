@@ -38,6 +38,8 @@ export default function Restock() {
         <StatTile tone="coral" icon="bi-x-circle" label="Rejected" value={counts.rejected || 0} />
       </div>
 
+      <AdjustmentQueue onChanged={load} />
+
       <Card
         bodyClass=""
         actions={(
@@ -54,7 +56,7 @@ export default function Restock() {
             ))}
           </div>
         )}
-        title="Requests"
+        title="Restock orders"
         subtitle={data ? `${data.requests.length} shown` : 'Loading…'}
       >
         {!data ? <Loading rows={8} /> : data.requests.length === 0 ? (
@@ -144,5 +146,132 @@ export default function Restock() {
         moment still cannot produce a duplicate.
       </div>
     </Layout>
+  );
+}
+
+/**
+ * Stock counts that differed from the system by more than the tolerance.
+ *
+ * They wait here for the Manager rather than changing stock on their own.
+ * Approving applies the counted difference to stock immediately; rejecting
+ * leaves stock as it was. Either way the person who counted is notified.
+ */
+function AdjustmentQueue({ onChanged }) {
+  const { isRole } = useAuth();
+  const [data, setData] = useState(null);
+  const [view, setView] = useState('pending');
+  const [error, setError] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  const load = () => api.get(`/restock?kind=adjustment&status=${view}&limit=100`)
+    .then((d) => { setData(d); setError(null); })
+    .catch(setError);
+  useEffect(() => { load(); }, [view]);
+
+  const decide = async (id, approve) => {
+    setBusyId(id); setError(null);
+    try {
+      await api.post(`/restock/${id}/approve`, { approve });
+      await load();
+      onChanged?.();
+    } catch (err) { setError(err); } finally { setBusyId(null); }
+  };
+
+  const signed = (n) => (n > 0 ? `+${n}` : String(n));
+
+  return (
+    <div id="adjustments" className="mb-4">
+      <Card
+        bodyClass=""
+        title="Stock counts awaiting approval"
+        subtitle="A count more than 5% or 3 units away from system stock needs the Manager before it changes anything"
+        actions={(
+          <div className="d-flex flex-wrap gap-2">
+            {[['pending', 'Waiting'], ['closed', 'Decided']].map(([v, label]) => (
+              <button
+                key={v}
+                className={`btn btn-sm ${view === v ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setView(v)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      >
+        {error && <div className="p-3"><ErrorNote error={error} /></div>}
+        {!data ? <Loading rows={2} /> : data.requests.length === 0 ? (
+          <EmptyState icon="bi-clipboard-check" title={view === 'pending' ? 'No counts waiting' : 'No decided counts yet'}>
+            {view === 'pending' ? 'Counts within tolerance apply straight away and never appear here.' : null}
+          </EmptyState>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table-soft">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Counted by</th>
+                  <th className="text-end">System had</th>
+                  <th className="text-end">Counted</th>
+                  <th className="text-end">Difference</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {data.requests.map((r) => (
+                  <tr key={r._id} className={r.status === 'pending' ? 'row-flag flag-warn' : ''}>
+                    <td>
+                      <div className="td-strong">{r.product_id?.name || '—'}</div>
+                      <div className="td-muted">Stock now {r.product_id?.stock ?? '—'}</div>
+                    </td>
+                    <td>
+                      <div>{r.raised_by?.name || '—'}</div>
+                      <div className="td-muted">{longDate(r.createdAt)}</div>
+                    </td>
+                    <td className="text-end num td-muted">{r.stock_at_request}</td>
+                    <td className="text-end num td-strong">{r.counted_stock}</td>
+                    <td
+                      className="text-end num"
+                      style={{ fontWeight: 'var(--weight-bold)', color: r.difference < 0 ? 'var(--coral-deep)' : 'var(--sage-deep)' }}
+                    >
+                      {signed(r.difference)}
+                    </td>
+                    <td className="td-muted">{r.note || '—'}</td>
+                    <td>
+                      <StatusChip status={r.status} />
+                      {r.approved_by?.name && <div className="td-muted mt-1">by {r.approved_by.name}</div>}
+                    </td>
+                    <td className="text-end" style={{ whiteSpace: 'nowrap' }}>
+                      {r.status === 'pending' && isRole('Manager') && (
+                        <>
+                          <button
+                            className="btn btn-accent btn-sm me-2"
+                            disabled={busyId === r._id}
+                            onClick={() => decide(r._id, true)}
+                            title={`Apply ${signed(r.difference)} to stock`}
+                          >
+                            Apply {signed(r.difference)}
+                          </button>
+                          <button
+                            className="btn btn-danger-soft btn-sm"
+                            disabled={busyId === r._id}
+                            onClick={() => decide(r._id, false)}
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {r.status === 'pending' && !isRole('Manager') && <span className="td-muted">Manager decides</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }

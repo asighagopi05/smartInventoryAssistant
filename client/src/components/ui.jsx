@@ -42,6 +42,7 @@ export function StatusChip({ status }) {
     approved: ['info', 'bi-check2', 'Approved'],
     received: ['ok', 'bi-box-seam', 'Received'],
     rejected: ['danger', 'bi-x-circle', 'Rejected'],
+    applied: ['ok', 'bi-check2-all', 'Applied'],
     open: ['warn', 'bi-exclamation-circle', 'Open'],
     acknowledged: ['info', 'bi-eye', 'Acknowledged'],
     resolved: ['ok', 'bi-check-circle', 'Resolved'],

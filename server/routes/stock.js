@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const asyncHandler = require('../utils/asyncHandler');
+const ApiError = require('../utils/ApiError');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { adjustStock, recordCount } = require('../services/stockService');
 const { adjustmentTolerance } = require('../services/stockRules');
@@ -20,9 +21,33 @@ router.get('/logs', asyncHandler(async (req, res) => {
   res.json({ logs });
 }));
 
-/** Direct movement: damage, returns, a manual correction within tolerance. */
+/**
+ * Direct movement: damage, returns, a manual correction within tolerance.
+ *
+ * Staff are held to the same tolerance as a count. Without that, writing 50
+ * units off as "damage" here would skip the very approval the count screen
+ * enforces, which is the shrinkage control the design relies on.
+ */
+const DIRECT_TYPES = ['damage', 'return', 'adjustment', 'received'];
 router.post('/adjust', requireRole('Manager', 'Staff'), asyncHandler(async (req, res) => {
   const { productId, quantityChange, entryType = 'adjustment', reason } = req.body;
+  if (!DIRECT_TYPES.includes(entryType)) {
+    throw ApiError.badRequest(`entryType must be one of: ${DIRECT_TYPES.join(', ')}`);
+  }
+  if (req.user.role === 'Staff') {
+    if (entryType === 'received') {
+      throw ApiError.forbidden('Deliveries are received against an approved restock request');
+    }
+    const product = await Product.findById(productId).lean();
+    if (!product) throw ApiError.notFound('Product not found');
+    const tolerance = adjustmentTolerance(product.stock);
+    if (Math.abs(Number(quantityChange)) > tolerance) {
+      throw ApiError.forbidden(
+        `A change of ${quantityChange} is beyond the tolerance of ${tolerance} for ${product.name}. `
+        + 'Record a count instead, so the Manager can approve it.'
+      );
+    }
+  }
   const result = await adjustStock({
     productId,
     quantityChange: Number(quantityChange),

@@ -1,4 +1,4 @@
-const { Product, StockLog, RestockRequest, Notification } = require('../models');
+const { Product, StockLog, RestockRequest, Notification, User } = require('../models');
 const { shouldRestock, restockQty, needsApproval, adjustmentTolerance } = require('./stockRules');
 const ApiError = require('../utils/ApiError');
 
@@ -87,6 +87,7 @@ async function maybeRaiseRestock(product) {
       product_id: product._id,
       supplier_id: product.supplier_id,
       qty: restockQty(product),
+      kind: 'restock',
       status: 'pending',
       trigger: 'auto',
       stock_at_request: product.stock,
@@ -120,8 +121,12 @@ async function maybeRaiseRestock(product) {
  * control, placed in the workflow rather than in a separate role.
  */
 async function recordCount({ productId, countedStock, userId, reason }) {
+  if (!Number.isInteger(countedStock) || countedStock < 0) {
+    throw ApiError.badRequest('The count must be a whole number, 0 or more');
+  }
   const product = await Product.findById(productId);
   if (!product) throw ApiError.notFound('Product not found');
+  if (!product.active) throw ApiError.badRequest(`${product.name} is not active`);
 
   const difference = countedStock - product.stock;
   if (difference === 0) return { applied: true, difference: 0, product };
@@ -131,14 +136,19 @@ async function recordCount({ productId, countedStock, userId, reason }) {
       product_id: product._id,
       supplier_id: product.supplier_id,
       qty: Math.abs(difference),
+      kind: 'adjustment',
+      counted_stock: countedStock,
+      difference,
       status: 'pending',
       trigger: 'manual',
       stock_at_request: product.stock,
       threshold_at_request: product.threshold,
       raised_by: userId,
-      note: `Adjustment request: counted ${countedStock} against system ${product.stock} (difference ${difference}). ${reason || ''}`.trim(),
+      note: reason ? String(reason).slice(0, 400) : undefined,
     }).catch((err) => {
-      if (err.code === 11000) throw ApiError.conflict('An approval is already pending for this product');
+      if (err.code === 11000) {
+        throw ApiError.conflict(`A stock count for ${product.name} is already waiting for the Manager. It must be approved or rejected before another one.`);
+      }
       throw err;
     });
 
@@ -149,7 +159,7 @@ async function recordCount({ productId, countedStock, userId, reason }) {
       for_role: 'Manager',
       ref_type: 'RestockRequest',
       ref_id: request._id,
-      link: '/restock',
+      link: '/restock#adjustments',
     });
 
     return { applied: false, difference, needsApproval: true, request, product };
@@ -169,6 +179,7 @@ async function approveRestock({ requestId, userId, approve = true, note }) {
   if (request.status !== 'pending') {
     throw ApiError.badRequest(`This request is already ${request.status}`);
   }
+  if (request.kind === 'adjustment') return decideAdjustment({ request, userId, approve, note });
 
   request.status = approve ? 'approved' : 'rejected';
   request.approved_by = userId;
@@ -190,10 +201,76 @@ async function approveRestock({ requestId, userId, approve = true, note }) {
   return request;
 }
 
+/**
+ * The Manager decides an out-of-tolerance count.
+ *
+ * Approving applies the counted difference straight away, through adjustStock
+ * like every other movement, and closes the request as `applied`. Before
+ * Phase 3 an adjustment was stored as an ordinary restock request, so
+ * approving one left it "in transit" and "Mark received" then ADDED the
+ * difference as a delivery - a shortage of 10 became 10 extra units.
+ *
+ * The difference, not the counted figure, is what gets applied. Sales made
+ * between the count and the approval moved the system stock and the real shelf
+ * by the same amount, so the gap between them is still exactly `difference`.
+ */
+async function decideAdjustment({ request, userId, approve, note }) {
+  const product = await Product.findById(request.product_id).lean();
+  const counter = await User.findById(request.raised_by).select('name').lean();
+  const approver = await User.findById(userId).select('name').lean();
+
+  if (approve) {
+    try {
+      await adjustStock({
+        productId: request.product_id,
+        quantityChange: request.difference,
+        entryType: 'adjustment',
+        reason: `Count by ${counter?.name || 'staff'} approved by ${approver?.name || 'the Manager'}: `
+          + `counted ${request.counted_stock}, system had ${request.stock_at_request}`,
+        source: 'manual',
+        userId: request.raised_by || userId,
+        restockRequestId: request._id,
+      });
+    } catch (err) {
+      if (err.status === 409) {
+        throw ApiError.conflict(
+          `Cannot apply: ${product?.name || 'the product'} now holds less than the ${-request.difference} units this count would remove. `
+          + 'Stock has moved since the count - reject this one and count again.'
+        );
+      }
+      throw err;
+    }
+  }
+
+  request.status = approve ? 'applied' : 'rejected';
+  request.approved_by = userId;
+  request.approved_at = new Date();
+  if (note) request.note = [request.note, `Manager: ${note}`].filter(Boolean).join(' | ').slice(0, 400);
+  await request.save();
+
+  const signed = request.difference > 0 ? `+${request.difference}` : String(request.difference);
+  await Notification.create({
+    type: 'adjustment_decided',
+    title: approve ? 'Your stock count was approved' : 'Your stock count was rejected',
+    body: approve
+      ? `${product?.name || 'A product'}: the ${signed} correction from your count of ${request.counted_stock} is now applied.`
+      : `${product?.name || 'A product'}: your count of ${request.counted_stock} (${signed}) was not applied. Stock is unchanged.`,
+    for_user_id: request.raised_by,
+    ref_type: 'RestockRequest',
+    ref_id: request._id,
+    link: '/stock',
+  });
+
+  return request;
+}
+
 /** Goods arrive. Stock rises through the same service, and the request closes. */
 async function receiveRestock({ requestId, userId, receivedQty }) {
   const request = await RestockRequest.findById(requestId);
   if (!request) throw ApiError.notFound('Restock request not found');
+  if (request.kind === 'adjustment') {
+    throw ApiError.badRequest('A stock adjustment is applied when it is approved; there is nothing to receive');
+  }
   if (request.status !== 'approved') {
     throw ApiError.badRequest(`Only an approved request can be received - this one is ${request.status}`);
   }

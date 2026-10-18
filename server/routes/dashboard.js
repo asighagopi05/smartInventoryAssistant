@@ -24,8 +24,8 @@ router.get('/', asyncHandler(async (req, res) => {
   ] = await Promise.all([
     Product.countDocuments({ active: true }),
     Product.countDocuments({ active: true, $expr: { $lte: ['$stock', '$threshold'] } }),
-    RestockRequest.countDocuments({ status: { $in: ['pending', 'approved'] } }),
-    RestockRequest.countDocuments({ status: 'pending' }),
+    RestockRequest.countDocuments({ kind: { $ne: 'adjustment' }, status: { $in: ['pending', 'approved'] } }),
+    RestockRequest.countDocuments({ kind: { $ne: 'adjustment' }, status: 'pending' }),
     Customer.countDocuments(),
 
     Sale.aggregate([
@@ -125,7 +125,7 @@ router.get('/low-stock', asyncHandler(async (_req, res) => {
     .limit(100)
     .lean({ getters: true });
 
-  const openIds = await RestockRequest.find({ status: { $in: ['pending', 'approved'] } })
+  const openIds = await RestockRequest.find({ kind: { $ne: 'adjustment' }, status: { $in: ['pending', 'approved'] } })
     .distinct('product_id');
   const open = new Set(openIds.map(String));
 

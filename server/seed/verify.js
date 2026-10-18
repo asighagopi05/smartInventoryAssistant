@@ -58,16 +58,17 @@ async function main() {
   check('Ledger rows form an unbroken chain (25 products sampled)', brokenChains === 0,
     brokenChains ? `${brokenChains} broken chain(s)` : 'before + change = after, and after chains into next before');
 
-  // 3. One OPEN restock request per product ---------------------------------
+  // 3. One OPEN request per product and kind ---------------------------------
   // Open means pending or approved: a product is below its threshold for the
   // whole lead time, so guarding only `pending` lets it re-order every sale.
+  // A pending stock count is a different kind and may sit alongside a reorder.
   const dupes = await RestockRequest.aggregate([
     { $match: { status: { $in: ['pending', 'approved'] } } },
-    { $group: { _id: '$product_id', n: { $sum: 1 } } },
+    { $group: { _id: { p: '$product_id', k: '$kind' }, n: { $sum: 1 } } },
     { $match: { n: { $gt: 1 } } },
   ]);
-  check('No product has more than one OPEN restock request', dupes.length === 0,
-    dupes.length ? `${dupes.length} product(s) with duplicates` : 'enforced by partial unique index');
+  check('No product has more than one OPEN request of each kind', dupes.length === 0,
+    dupes.length ? `${dupes.length} product(s) with duplicates` : 'enforced by partial unique index on product + kind');
 
   // 3b. Stock cover is sane -------------------------------------------------
   // Catches over-ordering: if the duplicate guard is wrong, fast movers quietly
@@ -173,6 +174,37 @@ async function main() {
   // 13. The Owner never billed ----------------------------------------------
   const ownerSales = owner ? await Sale.countDocuments({ billed_by: owner._id }) : 0;
   check('No sale was billed by the Owner', ownerSales === 0);
+
+  // 14. Stock adjustments are self-consistent and reach the ledger ----------
+  // Every adjustment records what was counted and the signed gap; one that was
+  // applied must have exactly that change in the ledger, linked back to it;
+  // none may sit in the restock-only states approved/received.
+  const adjustments = await RestockRequest.find({ kind: 'adjustment' }).lean();
+  const badShape = adjustments.filter((a) => a.counted_stock === null || a.difference === null
+    || a.counted_stock - a.stock_at_request !== a.difference || a.difference === 0);
+  const wrongState = adjustments.filter((a) => ['approved', 'received'].includes(a.status));
+  const applied = adjustments.filter((a) => a.status === 'applied');
+  const appliedLogs = new Map((await StockLog.find({ restock_request_id: { $in: applied.map((a) => a._id) } })
+    .select('restock_request_id quantity_change entry_type').lean())
+    .map((l) => [String(l.restock_request_id), l]));
+  const unlogged = applied.filter((a) => {
+    const log = appliedLogs.get(String(a._id));
+    return !log || log.quantity_change !== a.difference || log.entry_type !== 'adjustment';
+  });
+  check('Stock adjustments record the count, and every applied one is in the ledger',
+    badShape.length + wrongState.length + unlogged.length === 0,
+    `${adjustments.length} adjustment(s), ${applied.length} applied`
+      + (badShape.length ? `; ${badShape.length} malformed` : '')
+      + (wrongState.length ? `; ${wrongState.length} in a restock-only state` : '')
+      + (unlogged.length ? `; ${unlogged.length} applied without a matching ledger row` : ''));
+
+  // 15. No request is left open on a product that can no longer move --------
+  const inactiveIds = await Product.find({ active: false }).distinct('_id');
+  const deadOpen = await RestockRequest.countDocuments({
+    product_id: { $in: inactiveIds }, status: { $in: ['pending', 'approved'] },
+  });
+  check('No open request on a deactivated product', deadOpen === 0,
+    deadOpen ? `${deadOpen} stuck open` : `${inactiveIds.length} deactivated product(s) checked`);
 
   // ------------------------------------------------------------------------
   const failed = results.filter((r) => !r.ok);

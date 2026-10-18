@@ -25,7 +25,7 @@ router.get('/', asyncHandler(async (_req, res) => {
     .populate('product_id', 'name sku category unit stock threshold active')
     .lean();
 
-  const open = await RestockRequest.find({ status: { $in: ['pending', 'approved'] } })
+  const open = await RestockRequest.find({ kind: { $ne: 'adjustment' }, status: { $in: ['pending', 'approved'] } })
     .select('product_id status').lean();
   const restockOf = new Map(open.map((r) => [String(r.product_id), r.status]));
 

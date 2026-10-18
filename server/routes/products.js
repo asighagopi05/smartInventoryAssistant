@@ -3,7 +3,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { toPaise } = require('../utils/money');
-const { Product } = require('../models');
+const { Product, RestockRequest } = require('../models');
 
 router.use(requireAuth);
 
@@ -58,11 +58,25 @@ router.patch('/:id', requireRole('Manager'), asyncHandler(async (req, res) => {
   res.json({ product });
 }));
 
-/** Soft delete. Old bills and stock logs reference this product forever. */
+/**
+ * Soft delete. Old bills and stock logs reference this product forever.
+ *
+ * Its open requests are closed as rejected: stock can no longer move on an
+ * inactive product, so they could never be received or applied and would sit
+ * in the Manager's queue for good.
+ */
 router.delete('/:id', requireRole('Manager'), asyncHandler(async (req, res) => {
   const product = await Product.findByIdAndUpdate(req.params.id, { active: false }, { new: true });
   if (!product) throw ApiError.notFound('Product not found');
-  res.json({ product, note: 'Deactivated, not deleted - historical records still reference it' });
+  const closed = await RestockRequest.updateMany(
+    { product_id: product._id, status: { $in: ['pending', 'approved'] } },
+    { $set: { status: 'rejected', approved_by: req.user.id, approved_at: new Date(), note: 'Closed: product deactivated' } }
+  );
+  res.json({
+    product,
+    closed_requests: closed.modifiedCount,
+    note: 'Deactivated, not deleted - historical records still reference it',
+  });
 }));
 
 module.exports = router;

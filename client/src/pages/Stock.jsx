@@ -155,7 +155,7 @@ function CountPanel({ products, onClose, onDone }) {
           <p style={{ color: 'var(--ink-500)', marginTop: 8, marginBottom: 0, fontSize: 'var(--text-sm)' }}>
             {result.applied
               ? `Difference of ${result.difference} was within tolerance, so stock was corrected and a ledger row written.`
-              : `A difference of ${result.difference} is beyond tolerance. Rather than rewriting stock silently, an adjustment request was raised.`}
+              : `A difference of ${result.difference} is beyond tolerance. Stock has not changed: the count is waiting on the Restock page for the Manager to approve or reject, and you will be notified either way.`}
           </p>
         </div>
         <button className="btn btn-primary mt-3" onClick={onDone}>Done</button>

@@ -20,8 +20,10 @@ export default function Layout({ children, title, subtitle, actions }) {
     let cancelled = false;
     const load = async () => {
       try {
-        const { counts } = await api.get('/restock?status=pending&limit=1');
-        if (!cancelled) setBadges({ restock: counts?.pending || 0 });
+        // The badge is everything waiting on a Manager decision: reorders and
+        // out-of-tolerance counts alike.
+        const { counts, pending_adjustments: adj } = await api.get('/restock?status=pending&limit=1');
+        if (!cancelled) setBadges({ restock: (counts?.pending || 0) + (adj || 0) });
       } catch { /* the badge is not worth an error state */ }
     };
     load();

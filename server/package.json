@@ -11,7 +11,9 @@
     "seed": "node seed/seed.js",
     "verify": "node seed/verify.js",
     "apitest": "node seed/apitest.js",
-    "ml-demo": "node seed/mldemo.js"
+    "ml-demo": "node seed/mldemo.js",
+    "migrate": "node seed/migrate-phase3.js",
+    "phase3test": "node seed/phase3test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

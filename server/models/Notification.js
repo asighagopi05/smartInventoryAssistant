@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const TYPES = [
   'low_stock', 'restock_request', 'restock_approved', 'stock_received',
-  'adjustment_request', 'bad_review', 'issue_raised',
+  'adjustment_request', 'adjustment_decided', 'bad_review',
+  'issue_raised', 'issue_updated', 'task_assigned', 'task_done', 'discussion_reply',
 ];
 
 /**
