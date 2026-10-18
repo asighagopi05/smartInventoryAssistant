@@ -571,6 +571,45 @@ a:hover { color: var(--brand); }
 .star-btn.on { color: var(--amber); }
 
 /* ==========================================================================
+   Floor: issues, tasks, discussion, notifications - one list-row pattern
+   ========================================================================== */
+
+.list-row {
+  display: flex; gap: var(--sp-4); align-items: flex-start;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: var(--border-light);
+  box-shadow: inset 4px 0 0 var(--bar, transparent);
+}
+.list-row:last-child { border-bottom: none; }
+.list-row-main { flex: 1 1 auto; min-width: 0; }
+.list-row-title { font-size: var(--text-md); margin: 0; overflow-wrap: anywhere; }
+.list-row-body { margin: var(--sp-2) 0; color: var(--ink-700); overflow-wrap: anywhere; }
+.list-row-meta { font-size: var(--text-sm); color: var(--ink-500); margin-top: var(--sp-1); }
+.list-row-meta strong { color: var(--ink-700); font-weight: var(--weight-medium); }
+.list-row-resolution {
+  margin-top: var(--sp-3); padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--sage-soft); color: var(--sage-deep); font-size: var(--text-sm);
+}
+.list-row-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); justify-content: flex-end; flex: 0 0 auto; max-width: 46%; }
+.list-row.unread { background: var(--indigo-soft); }
+
+.check-pill {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  padding: 0.35rem 0.8rem; border-radius: var(--radius-sm); border: var(--border);
+  font-size: var(--text-sm); color: var(--ink-700); cursor: pointer; user-select: none;
+}
+.check-pill input { width: 18px; height: 18px; accent-color: var(--indigo); }
+
+.post { display: flex; gap: var(--sp-3); }
+.post + .post { margin-top: var(--sp-4); }
+.post-body { min-width: 0; flex: 1 1 auto; }
+.post-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2); }
+.post-head strong { color: var(--ink-900); }
+.post-text { margin: var(--sp-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink-700); }
+.replies { margin-top: var(--sp-4); padding-left: var(--sp-4); border-left: 2px solid var(--ink-100); }
+
+/* ==========================================================================
    Misc
    ========================================================================== */
 
@@ -615,6 +654,11 @@ a:hover { color: var(--brand); }
   .till-grid { grid-template-columns: 1fr; }
   .login-page { grid-template-columns: 1fr; }
   .login-art { display: none; }
+}
+
+@media (max-width: 700px) {
+  .list-row { flex-direction: column; }
+  .list-row-actions { max-width: none; justify-content: flex-start; }
 }
 
 @media (max-width: 860px) {

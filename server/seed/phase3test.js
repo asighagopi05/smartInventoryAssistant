@@ -4,13 +4,16 @@
  * plus the edge cases each workflow has to get right.
  *
  * Like apitest, it creates its own throwaway product so the demo data is left
- * alone, and deactivates it at the end. The issues, tasks and posts it creates
- * are titled "[test]" and closed before it finishes.
+ * alone, and deactivates it at the end. The issues, tasks and discussion posts
+ * it creates all start with "[test]"; once every check has run they are
+ * removed straight from the database, with the notifications they caused, so
+ * repeated runs do not fill the demo boards with test chatter.
  *
  * Run: npm run phase3test   (with the server already running)
  */
 
 require('dotenv').config({ path: `${__dirname}/../.env` });
+const mongoose = require('mongoose');
 
 const BASE = `http://localhost:${process.env.PORT || 5000}/api`;
 const results = [];
@@ -83,6 +86,7 @@ async function main() {
       .filter((r) => String(r.product_id?._id) === String(product._id));
     check('Deactivating a product closes its open requests', del.status === 200 && stillOpen.length === 0,
       `${del.body?.closed_requests} closed, ${stillOpen.length} still open`);
+    await removeTestRecords();
   }
 
   const failed = results.filter((r) => !r.ok);
@@ -205,12 +209,209 @@ async function adjustments({ manager, staff, product }) {
 }
 
 // ---------------------------------------------------------------------------
-// The sections below are filled in as each Phase 3 step lands.
+// 3.1  Issues
 // ---------------------------------------------------------------------------
-async function issues() {}
-async function tasks() {}
-async function discussion() {}
+const created = { issues: [], tasks: [] };
+
+async function issues({ owner, manager, staff, staff2, product }) {
+  heading('3.1  Issues: Staff flag, the Manager sees and resolves');
+
+  const raised = await call('/issues', {
+    method: 'POST', token: staff.token,
+    body: { title: '[test] Freezer door not sealing', description: 'Gap at the bottom left', category: 'equipment', severity: 'high', productId: product._id },
+  });
+  const issue = raised.body?.issue;
+  if (issue) created.issues.push(issue._id);
+  check('Staff can flag an issue', raised.status === 201 && issue?.status === 'open'
+    && issue?.raised_by?.name === staff.user.name && issue?.product_id?.name === product.name,
+    `${raised.status}, raised by ${issue?.raised_by?.name}`);
+
+  const ownerRaise = await call('/issues', { method: 'POST', token: owner.token, body: { title: '[test] owner' } });
+  check('The Owner reviews issues but does not flag them (403)', ownerRaise.status === 403);
+  const blank = await call('/issues', { method: 'POST', token: staff.token, body: { title: '   ' } });
+  check('An issue with no title is rejected (400)', blank.status === 400, blank.body?.details?.title || blank.body?.error);
+  const badCat = await call('/issues', { method: 'POST', token: staff.token, body: { title: '[test] x', category: 'aliens' } });
+  check('An unknown category is rejected (400)', badCat.status === 400);
+
+  const mgrList = await call('/issues?status=active', { token: manager.token });
+  check('The Manager sees it in the active list, high severity first',
+    mgrList.body.issues.some((i) => i._id === issue._id) && mgrList.body.issues[0].severity === 'high',
+    `${mgrList.body.issues.length} active, first is ${mgrList.body.issues[0]?.severity}`);
+
+  const mgrNotes = await call('/notifications?limit=100', { token: manager.token });
+  check('Flagging it notified the Manager',
+    mgrNotes.body.notifications.some((n) => n.type === 'issue_raised' && String(n.ref_id) === issue._id));
+
+  const other = await call('/issues?status=active', { token: staff2.token });
+  check('Other staff on the floor can see it too', other.body.issues.some((i) => i._id === issue._id));
+  const mine = await call('/issues?status=all&mine=1', { token: staff2.token });
+  check('"Only mine" shows only issues that person flagged',
+    mine.status === 200 && mine.body.issues.every((i) => String(i.raised_by?._id) === String(staff2.user.id)));
+
+  const staffResolve = await call(`/issues/${issue._id}/resolve`, { method: 'POST', token: staff.token, body: {} });
+  check('Staff cannot resolve an issue (403)', staffResolve.status === 403);
+
+  const ack = await call(`/issues/${issue._id}/acknowledge`, { method: 'POST', token: manager.token });
+  check('The Manager acknowledges it; who and when are recorded',
+    ack.status === 200 && ack.body.issue.status === 'acknowledged' && ack.body.issue.acknowledged_by?.name === manager.user.name
+      && !!ack.body.issue.acknowledged_at);
+  const ackAgain = await call(`/issues/${issue._id}/acknowledge`, { method: 'POST', token: manager.token });
+  check('It cannot be acknowledged twice (400)', ackAgain.status === 400, ackAgain.body?.error);
+
+  const res = await call(`/issues/${issue._id}/resolve`, { method: 'POST', token: manager.token, body: { note: 'Seal replaced' } });
+  check('Resolving it closes it, with the note',
+    res.status === 200 && res.body.issue.status === 'resolved' && res.body.issue.resolution_note === 'Seal replaced'
+      && res.body.issue.resolved_by?.name === manager.user.name);
+  const active = await call('/issues?status=active', { token: manager.token });
+  check('A resolved issue leaves the active list', !active.body.issues.some((i) => i._id === issue._id));
+
+  const staffNotes = await call('/notifications?limit=100', { token: staff.token });
+  const updates = staffNotes.body.notifications.filter((n) => n.type === 'issue_updated' && String(n.ref_id) === issue._id);
+  check('The person who flagged it was told at each step', updates.length === 2,
+    updates.map((u) => u.title.split(':')[0]).join(' / '));
+
+  const reopen = await call(`/issues/${issue._id}/reopen`, { method: 'POST', token: manager.token });
+  check('A resolved issue can be reopened, clearing the resolution',
+    reopen.status === 200 && reopen.body.issue.status === 'open' && reopen.body.issue.resolved_at === null);
+  await call(`/issues/${issue._id}/resolve`, { method: 'POST', token: manager.token, body: { note: '[test] done' } });
+
+  const missing = await call('/issues/000000000000000000000000/acknowledge', { method: 'POST', token: manager.token });
+  check('Acting on an issue that does not exist is a 404', missing.status === 404);
+}
+
+// ---------------------------------------------------------------------------
+// 3.2  Tasks
+// ---------------------------------------------------------------------------
+async function tasks({ owner, manager, staff, staff2, product }) {
+  heading('3.2  Tasks: the Manager hands out work, Staff finish it');
+
+  const today = new Date();
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const made = await call('/tasks', {
+    method: 'POST', token: manager.token,
+    body: { title: '[test] Face up aisle 3', assignedTo: staff.user.id, dueDate: iso(today), productId: product._id },
+  });
+  const task = made.body?.task;
+  if (task) created.tasks.push(task._id);
+  check('The Manager can give a task to a Staff member', made.status === 201 && task?.assigned_to?.name === staff.user.name,
+    `${made.status}, to ${task?.assigned_to?.name}`);
+
+  const staffMake = await call('/tasks', { method: 'POST', token: staff.token, body: { title: '[test] x', assignedTo: staff2.user.id } });
+  check('Staff cannot hand out tasks (403)', staffMake.status === 403);
+  const toOwner = await call('/tasks', { method: 'POST', token: manager.token, body: { title: '[test] x', assignedTo: owner.user.id } });
+  check('A task cannot be given to the Owner (400)', toOwner.status === 400, toOwner.body?.error);
+  const past = new Date(today.getTime() - 3 * 86400000);
+  const late = await call('/tasks', { method: 'POST', token: manager.token, body: { title: '[test] x', assignedTo: staff.user.id, dueDate: iso(past) } });
+  check('A due date in the past is rejected (400)', late.status === 400, late.body?.error);
+
+  const n1 = await call('/notifications?limit=100', { token: staff.token });
+  check('The Staff member was notified of the task',
+    n1.body.notifications.some((n) => n.type === 'task_assigned' && String(n.ref_id) === task._id));
+
+  const theirs = await call('/tasks?status=open', { token: staff.token });
+  const others = await call('/tasks?status=all', { token: staff2.token });
+  check('Staff see their own tasks only',
+    theirs.body.tasks.some((t) => t._id === task._id) && !others.body.tasks.some((t) => t._id === task._id));
+  const ownerView = await call('/tasks?status=open', { token: owner.token });
+  check('The Owner can see every task', ownerView.body.tasks.some((t) => t._id === task._id));
+
+  const stranger = await call(`/tasks/${task._id}/done`, { method: 'POST', token: staff2.token, body: {} });
+  check('Someone else cannot finish your task (403)', stranger.status === 403);
+  const cancelByStaff = await call(`/tasks/${task._id}/cancel`, { method: 'POST', token: staff.token });
+  check('Staff cannot cancel a task (403)', cancelByStaff.status === 403);
+
+  const done = await call(`/tasks/${task._id}/done`, { method: 'POST', token: staff.token, body: { note: 'All faced up' } });
+  check('The assignee marks it done, with a note',
+    done.status === 200 && done.body.task.status === 'done' && done.body.task.done_note === 'All faced up' && !!done.body.task.done_at);
+  const twice = await call(`/tasks/${task._id}/done`, { method: 'POST', token: staff.token, body: {} });
+  check('A finished task cannot be finished again (400)', twice.status === 400);
+
+  const n2 = await call('/notifications?limit=100', { token: manager.token });
+  check('The Manager was told it is done',
+    n2.body.notifications.some((n) => n.type === 'task_done' && String(n.ref_id) === task._id));
+
+  const back = await call(`/tasks/${task._id}/reopen`, { method: 'POST', token: manager.token });
+  check('The Manager can send finished work back', back.status === 200 && back.body.task.status === 'open' && back.body.task.done_note === null);
+  const cancel = await call(`/tasks/${task._id}/cancel`, { method: 'POST', token: manager.token });
+  check('The Manager can cancel a task; it is kept, not deleted',
+    cancel.status === 200 && cancel.body.task.status === 'cancelled'
+      && (await call('/tasks?status=cancelled', { token: manager.token })).body.tasks.some((t) => t._id === task._id));
+
+  // An issue can become a task, and the task remembers it.
+  const issueId = created.issues[0];
+  const fromIssue = await call('/tasks', {
+    method: 'POST', token: manager.token,
+    body: { title: '[test] Fix freezer seal', assignedTo: staff2.user.id, issueId },
+  });
+  if (fromIssue.body?.task) created.tasks.push(fromIssue.body.task._id);
+  check('A task can be made from an issue and links back to it',
+    fromIssue.status === 201 && String(fromIssue.body.task.issue_id?._id) === String(issueId),
+    fromIssue.body?.task?.issue_id?.title);
+  await call(`/tasks/${fromIssue.body.task._id}/cancel`, { method: 'POST', token: manager.token });
+
+  const badges = await call('/dashboard/badges', { token: staff.token });
+  check('The sidebar badge endpoint answers for every role',
+    badges.status === 200 && ['approvals', 'issues', 'tasks'].every((k) => typeof badges.body[k] === 'number'),
+    JSON.stringify(badges.body));
+}
+
+// ---------------------------------------------------------------------------
+// 3.2  Discussion
+// ---------------------------------------------------------------------------
+async function discussion({ owner, manager, staff, staff2 }) {
+  heading('3.2  Discussion: an internal board, one level of replies');
+
+  const post = await call('/discussion', { method: 'POST', token: staff.token, body: { body: '[test] Bread delivery is late again' } });
+  check('Staff can post', post.status === 201 && post.body.note.author_id?.name === staff.user.name);
+  const empty = await call('/discussion', { method: 'POST', token: staff.token, body: { body: '   ' } });
+  check('An empty post is rejected (400)', empty.status === 400, empty.body?.error);
+  const huge = await call('/discussion', { method: 'POST', token: staff.token, body: { body: 'x'.repeat(1001) } });
+  check('A post over 1000 characters is rejected (400)', huge.status === 400);
+
+  const reply = await call('/discussion', { method: 'POST', token: manager.token, body: { body: '[test] Calling them now', parentId: post.body.note._id } });
+  const deep = await call('/discussion', { method: 'POST', token: staff2.token, body: { body: '[test] Same at my shift', parentId: reply.body.note._id } });
+  check('A reply to a reply attaches to the original post',
+    reply.status === 201 && deep.status === 201 && String(deep.body.note.parent_id) === String(post.body.note._id));
+
+  const ownerPost = await call('/discussion', { method: 'POST', token: owner.token, body: { body: '[test] Owner here' } });
+  check('The Owner can take part', ownerPost.status === 201);
+
+  const board = await call('/discussion?limit=50', { token: staff2.token });
+  const thread = board.body.posts.find((p) => p._id === post.body.note._id);
+  check('The board returns threads with their replies in order',
+    thread && thread.replies.length === 2 && thread.replies[0]._id === reply.body.note._id,
+    `${thread?.replies?.length} replies`);
+  check('Replies are not listed as top-level posts', !board.body.posts.some((p) => p._id === reply.body.note._id));
+
+  const n = await call('/notifications?limit=100', { token: staff.token });
+  const pings = n.body.notifications.filter((x) => x.type === 'discussion_reply' && String(x.ref_id) === post.body.note._id);
+  check('The original poster is told about each reply from someone else', pings.length === 2, `${pings.length} notification(s)`);
+
+  const fb = await call('/feedback?limit=300', { token: manager.token });
+  check('Discussion posts never show up as customer feedback', !fb.body.notes.some((x) => (x.body || '').startsWith('[test]')));
+}
+
 async function notificationCentre() {}
+
+/** Delete what this script created on the floor boards, and what it notified. */
+async function removeTestRecords() {
+  await mongoose.connect(process.env.MONGODB_URI);
+  const { Issue, Task, Note, Notification } = require('../models');
+  const test = /^\[test\]/;
+  const ids = [
+    ...await Issue.find({ title: test }).distinct('_id'),
+    ...await Task.find({ title: test }).distinct('_id'),
+    ...await Note.find({ type: 'discussion', body: test }).distinct('_id'),
+  ];
+  const n = await Notification.deleteMany({ ref_id: { $in: ids } });
+  const i = await Issue.deleteMany({ title: test });
+  const t = await Task.deleteMany({ title: test });
+  const d = await Note.deleteMany({ type: 'discussion', body: test });
+  await mongoose.disconnect();
+  console.log(`  (removed test records: ${i.deletedCount} issue(s), ${t.deletedCount} task(s), `
+    + `${d.deletedCount} post(s), ${n.deletedCount} notification(s))`);
+}
 
 main().catch((err) => {
   console.error('\n[phase3test] ERROR:', err);

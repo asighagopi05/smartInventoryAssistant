@@ -11,6 +11,7 @@ module.exports = {
   Note: require('./Note'),
   Notification: require('./Notification'),
   Issue: require('./Issue'),
+  Task: require('./Task'),
   ComboCache: require('./ComboCache'),
   Prediction: require('./Prediction'),
 };

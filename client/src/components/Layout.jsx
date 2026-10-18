@@ -12,7 +12,7 @@ export default function Layout({ children, title, subtitle, actions }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const [badges, setBadges] = useState({ restock: 0 });
+  const [badges, setBadges] = useState({ approvals: 0, issues: 0, tasks: 0 });
 
   useEffect(() => { setOpen(false); }, [location.pathname]);
 
@@ -20,10 +20,10 @@ export default function Layout({ children, title, subtitle, actions }) {
     let cancelled = false;
     const load = async () => {
       try {
-        // The badge is everything waiting on a Manager decision: reorders and
-        // out-of-tolerance counts alike.
-        const { counts, pending_adjustments: adj } = await api.get('/restock?status=pending&limit=1');
-        if (!cancelled) setBadges({ restock: (counts?.pending || 0) + (adj || 0) });
+        // approvals: reorders and stock counts waiting on the Manager;
+        // issues: flagged and not yet acknowledged; tasks: open ones given to me.
+        const counts = await api.get('/dashboard/badges');
+        if (!cancelled) setBadges(counts);
       } catch { /* the badge is not worth an error state */ }
     };
     load();

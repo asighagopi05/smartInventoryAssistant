@@ -14,7 +14,7 @@ require('dotenv').config({ path: `${__dirname}//../.env` });
 const mongoose = require('mongoose');
 const { connectDB, closeDB } = require('../config/db');
 const {
-  User, Supplier, Product, StockLog, RestockRequest, Sale, Customer, Note, Issue,
+  User, Supplier, Product, StockLog, RestockRequest, Sale, Customer, Note, Issue, Task,
 } = require('../models');
 
 const results = [];
@@ -205,6 +205,38 @@ async function main() {
   });
   check('No open request on a deactivated product', deadOpen === 0,
     deadOpen ? `${deadOpen} stuck open` : `${inactiveIds.length} deactivated product(s) checked`);
+
+  // 16. An issue's status matches what is recorded about it ------------------
+  // Resolved means someone resolved it, at a time; anything else has no
+  // resolution recorded. Older issues may lack an acknowledgement record, so
+  // only "acknowledged_at implies acknowledged_by" is required.
+  const issues = await Issue.find({}).lean();
+  const badIssues = issues.filter((i) => (i.status === 'resolved'
+    ? !i.resolved_by || !i.resolved_at
+    : !!i.resolved_by || !!i.resolved_at)
+    || (i.acknowledged_at && !i.acknowledged_by));
+  check('Every issue\'s status matches who resolved/acknowledged it and when', badIssues.length === 0,
+    badIssues.length ? `${badIssues.length} inconsistent` : `${issues.length} issues checked`);
+
+  // 17. Tasks go from a Manager to someone on the floor ---------------------
+  const users = new Map((await User.find({}).select('role').lean()).map((u) => [String(u._id), u.role]));
+  const tasksAll = await Task.find({}).lean();
+  const badTasks = tasksAll.filter((t) => users.get(String(t.created_by)) !== 'Manager'
+    || !['Staff', 'Manager'].includes(users.get(String(t.assigned_to)))
+    || (t.status === 'done') !== !!t.done_at);
+  check('Tasks are given by a Manager to Staff or a Manager; done tasks have a finish time',
+    badTasks.length === 0, badTasks.length ? `${badTasks.length} inconsistent` : `${tasksAll.length} tasks checked`);
+
+  // 18. Discussion threads are one level deep and always have an author -----
+  const posts = await Note.find({ type: 'discussion' }).select('parent_id author_id').lean();
+  const topLevel = new Set(posts.filter((p) => !p.parent_id).map((p) => String(p._id)));
+  const orphans = posts.filter((p) => p.parent_id && !topLevel.has(String(p.parent_id)));
+  const anonymous = posts.filter((p) => !p.author_id);
+  check('Discussion replies hang off a top-level post, and every post has an author',
+    orphans.length + anonymous.length === 0,
+    `${posts.length} posts, ${topLevel.size} threads`
+      + (orphans.length ? `; ${orphans.length} reply/replies to a missing or nested parent` : '')
+      + (anonymous.length ? `; ${anonymous.length} with no author` : ''));
 
   // ------------------------------------------------------------------------
   const failed = results.filter((r) => !r.ok);

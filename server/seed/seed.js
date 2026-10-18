@@ -23,10 +23,10 @@ const bcrypt = require('bcryptjs');
 
 const { connectDB, closeDB } = require('../config/db');
 const { toPaise } = require('../utils/money');
-const { shouldRestock, restockQty } = require('../services/stockRules');
+const { shouldRestock, restockQty, adjustmentTolerance } = require('../services/stockRules');
 const {
   Counter, User, Supplier, Product, StockLog,
-  RestockRequest, Sale, Customer, Note, Notification, Issue,
+  RestockRequest, Sale, Customer, Note, Notification, Issue, Task,
 } = require('../models');
 
 // ---------------------------------------------------------------------------
@@ -430,13 +430,8 @@ async function main() {
       createdAt: when, updatedAt: when,
     });
   }
-  notes.push(
-    { type: 'discussion', body: 'Chiller 2 is running warm, please check before the evening rush.', author_id: staff1._id, source: 'staff' },
-    { type: 'discussion', body: 'Noted. Raising it with the technician today.', author_id: manager._id, source: 'staff' },
-    { type: 'discussion', body: 'Dairy delivery arrived an hour late again this week.', author_id: staff2._id, source: 'staff' }
-  );
   await Note.insertMany(notes);
-  console.log(`[seed] notes: ${notes.length}`);
+  console.log(`[seed] feedback notes: ${notes.length}`);
 
   // Recompute the denormalised rating fields from the notes just written.
   const ratingAgg = await Note.aggregate([
@@ -450,28 +445,81 @@ async function main() {
     },
   })));
 
-  // -- issues ----------------------------------------------------------------
-  await Issue.insertMany([
-    { title: 'Chiller 2 temperature fluctuating', description: 'Reads 9C in the evening instead of 4C.', category: 'equipment', severity: 'high', status: 'open', raised_by: staff1._id },
-    { title: 'Shelf label wrong for Amul Butter', description: 'Shelf shows the old price.', category: 'pricing', severity: 'medium', status: 'open', raised_by: staff2._id },
-    { title: 'Water leak near the produce rack', description: 'Small puddle forming each morning.', category: 'shelf', severity: 'medium', status: 'acknowledged', raised_by: staff1._id },
-    { title: 'Damaged carton of noodles', description: 'Six packets crushed in transit.', category: 'damage', severity: 'low', status: 'resolved', raised_by: staff2._id, resolved_by: manager._id, resolved_at: new Date(TODAY.getTime() - 3 * 86400000) },
-    { title: 'Bread near expiry on shelf', description: 'Two loaves dated tomorrow, moved to front.', category: 'expiry', severity: 'low', status: 'resolved', raised_by: staff1._id, resolved_by: manager._id, resolved_at: new Date(TODAY.getTime() - 6 * 86400000) },
-    { title: 'Billing counter scanner intermittent', description: 'Fails to read every few scans.', category: 'equipment', severity: 'medium', status: 'open', raised_by: staff2._id },
+  // -- floor: issues, tasks, discussion (Phase 3) ---------------------------
+  // History is dated relative to the replay's last day; due dates relative to
+  // the real today, so "due today" and "overdue" mean what they say at the demo.
+  const ago = (days, hour = 10) => {
+    const d = new Date(TODAY.getTime() - days * 86400000);
+    d.setHours(hour, 0, 0, 0);
+    return d;
+  };
+  const realToday = new Date();
+  realToday.setHours(0, 0, 0, 0);
+  const dueIn = (days) => new Date(realToday.getTime() + days * 86400000 + 12 * 3600000);
+  const at = (date) => ({ createdAt: date, updatedAt: date });
+
+  const [chiller, label, leak] = await Issue.insertMany([
+    { title: 'Chiller 2 temperature fluctuating', description: 'Reads 9C in the evening instead of 4C.', category: 'equipment', severity: 'high', status: 'open', raised_by: staff1._id, ...at(ago(1, 18)) },
+    { title: 'Shelf label wrong for Amul Butter', description: 'Shelf shows the old price.', category: 'pricing', severity: 'medium', status: 'open', raised_by: staff2._id, ...at(ago(2, 11)) },
+    { title: 'Water leak near the produce rack', description: 'Small puddle forming each morning.', category: 'shelf', severity: 'medium', status: 'acknowledged', raised_by: staff1._id, acknowledged_by: manager._id, acknowledged_at: ago(3, 12), ...at(ago(4, 9)) },
+    { title: 'Damaged carton of noodles', description: 'Six packets crushed in transit.', category: 'damage', severity: 'low', status: 'resolved', raised_by: staff2._id, resolved_by: manager._id, resolved_at: ago(3, 16), resolution_note: 'Written off and claimed from the supplier.', ...at(ago(4, 14)) },
+    { title: 'Bread near expiry on shelf', description: 'Two loaves dated tomorrow, moved to front.', category: 'expiry', severity: 'low', status: 'resolved', raised_by: staff1._id, resolved_by: manager._id, resolved_at: ago(6, 17), resolution_note: 'Sold by evening at the reduced price.', ...at(ago(6, 9)) },
+    { title: 'Billing counter scanner intermittent', description: 'Fails to read every few scans.', category: 'equipment', severity: 'medium', status: 'open', raised_by: staff2._id, ...at(ago(0, 15)) },
   ]);
+
+  const tasks = await Task.insertMany([
+    { title: 'Call the technician about Chiller 2', description: 'Ask for a visit before the weekend. Log the evening temperature until then.', assigned_to: staff1._id, created_by: manager._id, issue_id: chiller._id, due_date: dueIn(0), ...at(ago(0, 19)) },
+    { title: 'Re-label the Amul Butter shelf with the new price', assigned_to: staff2._id, created_by: manager._id, issue_id: label._id, due_date: dueIn(-1), ...at(ago(1, 12)) },
+    { title: 'Clear the drain under the produce rack', description: 'Bucket and gloves are in the back store.', assigned_to: staff1._id, created_by: manager._id, issue_id: leak._id, due_date: dueIn(2), ...at(ago(3, 12)) },
+    { title: 'Move near-expiry bread to the front', assigned_to: staff2._id, created_by: manager._id, due_date: dueIn(1), ...at(ago(0, 9)) },
+    { title: 'Face up the biscuit aisle before the weekend', assigned_to: staff1._id, created_by: manager._id, status: 'done', done_at: ago(2, 18), done_note: 'Done, and refilled the Parle-G facing.', ...at(ago(2, 10)) },
+    { title: 'Count the chiller stock after the defrost', assigned_to: staff2._id, created_by: manager._id, status: 'done', done_at: ago(5, 16), done_note: 'All counts within tolerance.', ...at(ago(5, 9)) },
+    { title: 'Rearrange the festival gift packs display', assigned_to: staff2._id, created_by: manager._id, status: 'cancelled', ...at(ago(7, 11)) },
+  ]);
+
+  // One level of replies: a reply points at its post through parent_id.
+  const post = (author, body, when, parent = null) => ({
+    _id: new mongoose.Types.ObjectId(), type: 'discussion', body, author_id: author._id,
+    source: 'staff', parent_id: parent ? parent._id : null, ...at(when),
+  });
+  const p1 = post(staff1, 'Chiller 2 is running warm, please check before the evening rush.', ago(1, 17));
+  const p2 = post(staff2, 'Dairy delivery arrived an hour late again this week.', ago(3, 9));
+  const p3 = post(manager, 'Reminder: the weekly count is on Sunday morning. Please be in by 8.', ago(4, 20));
+  const discussion = [
+    p1,
+    post(manager, 'Noted. Raising it with the technician today, and I have made it a task.', ago(1, 19), p1),
+    post(staff1, 'Thanks. I will log the temperature every hour until they come.', ago(0, 9), p1),
+    p2,
+    post(manager, 'I will speak to Annapurna Dairy. Tell me if it happens again.', ago(3, 11), p2),
+    p3,
+  ];
+  await Note.insertMany(discussion);
+  console.log(`[seed] issues: 6, tasks: ${tasks.length}, discussion posts: ${discussion.length}`);
 
   // -- a handful of historical notifications --------------------------------
   // These are normally written by their triggers; only a few exist here so the
-  // bell is not empty on first login.
+  // bell is not empty on first login. Each points at a real document.
   const openRequests = await RestockRequest.find({ status: { $in: ['pending', 'approved'] } })
     .sort({ createdAt: -1 }).limit(3).populate('product_id', 'name').lean();
-  await Notification.insertMany(openRequests.map((r) => ({
-    type: 'restock_request',
-    title: 'Restock request raised',
-    body: `${r.product_id?.name || 'A product'} crossed its threshold and a request was raised automatically.`,
-    for_role: 'Manager', ref_type: 'RestockRequest', ref_id: r._id, link: '/restock',
-    createdAt: r.createdAt, updatedAt: r.createdAt,
-  })));
+  await Notification.insertMany([
+    ...openRequests.map((r) => ({
+      type: 'restock_request',
+      title: 'Restock request raised',
+      body: `${r.product_id?.name || 'A product'} crossed its threshold and a request was raised automatically.`,
+      for_role: 'Manager', ref_type: 'RestockRequest', ref_id: r._id, link: '/restock',
+      createdAt: r.createdAt, updatedAt: r.createdAt,
+    })),
+    {
+      type: 'issue_raised', title: `High-severity issue flagged: ${chiller.title}`,
+      body: `${staff1.name} flagged a high equipment issue. "${chiller.description}"`,
+      for_role: 'Manager', ref_type: 'Issue', ref_id: chiller._id, link: '/issues', ...at(chiller.createdAt),
+    },
+    ...tasks.filter((t) => t.status === 'open').map((t) => ({
+      type: 'task_assigned', title: `New task: ${t.title}`,
+      body: `${manager.name} gave you a task.`,
+      for_user_id: t.assigned_to, ref_type: 'Task', ref_id: t._id, link: '/tasks', ...at(t.createdAt),
+    })),
+  ]);
 
   // -- tune the live demo ----------------------------------------------------
   // Leave a few products one sale above their threshold so the auto-restock
@@ -504,9 +552,33 @@ async function main() {
     updatedAt: tuneAt,
   })));
 
+  // -- one stock count waiting for the Manager ------------------------------
+  // So the approvals queue shows the adjustment flow on first login. Raised
+  // last, against the stock the product holds now, exactly as a live count
+  // through the stock service would be.
+  const parked = new Set(demoPicks.map((p) => String(p._id)));
+  const countTarget = (await Product.find({ active: true, stock: { $gte: 20 } }).sort({ rating_count: -1 }).limit(40).lean())
+    .find((p) => !parked.has(String(p._id)));
+  if (countTarget) {
+    const off = adjustmentTolerance(countTarget.stock) + 3;
+    const adj = await RestockRequest.create({
+      product_id: countTarget._id, supplier_id: countTarget.supplier_id,
+      kind: 'adjustment', trigger: 'manual', status: 'pending',
+      qty: off, counted_stock: countTarget.stock - off, difference: -off,
+      stock_at_request: countTarget.stock, threshold_at_request: countTarget.threshold,
+      raised_by: staff2._id, note: 'Two cartons missing from the back store',
+    });
+    await Notification.create({
+      type: 'adjustment_request', title: 'Stock adjustment needs approval',
+      body: `${countTarget.name}: counted ${countTarget.stock - off} against system ${countTarget.stock}, a difference of ${-off} (tolerance ${adjustmentTolerance(countTarget.stock)}).`,
+      for_role: 'Manager', ref_type: 'RestockRequest', ref_id: adj._id, link: '/restock#adjustments',
+    });
+    console.log(`[seed] pending stock count: ${countTarget.name} (${countTarget.stock} -> counted ${countTarget.stock - off})`);
+  }
+
   // -- report ----------------------------------------------------------------
   const counts = {};
-  for (const [name, Model] of Object.entries({ User, Supplier, Product, StockLog, RestockRequest, Sale, Customer, Note, Notification, Issue })) {
+  for (const [name, Model] of Object.entries({ User, Supplier, Product, StockLog, RestockRequest, Sale, Customer, Note, Notification, Issue, Task })) {
     counts[name] = await Model.countDocuments();
   }
 

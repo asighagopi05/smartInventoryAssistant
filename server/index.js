@@ -37,6 +37,9 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/combos', require('./routes/combos'));
 app.use('/api/forecast', require('./routes/forecast'));
 app.use('/api/insights', require('./routes/insights'));
+app.use('/api/issues', require('./routes/issues'));
+app.use('/api/tasks', require('./routes/tasks'));
+app.use('/api/discussion', require('./routes/discussion'));
 
 
 app.use(notFound);

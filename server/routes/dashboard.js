@@ -2,7 +2,7 @@ const router = require('express').Router();
 const asyncHandler = require('../utils/asyncHandler');
 const { requireAuth } = require('../middleware/auth');
 const { toRupees } = require('../utils/money');
-const { Product, Sale, RestockRequest, Customer, Note, Issue } = require('../models');
+const { Product, Sale, RestockRequest, Customer, Note, Issue, Task } = require('../models');
 
 router.use(requireAuth);
 
@@ -20,7 +20,7 @@ router.get('/', asyncHandler(async (req, res) => {
   const [
     productCount, lowStock, openRequests, pendingRequests,
     customerCount, todayAgg, thirtyDayAgg, salesByDay,
-    topProducts, categoryMix, recentFeedback, openIssues, stockValueAgg,
+    topProducts, categoryMix, recentFeedback, openIssues, openTasks, stockValueAgg,
   ] = await Promise.all([
     Product.countDocuments({ active: true }),
     Product.countDocuments({ active: true, $expr: { $lte: ['$stock', '$threshold'] } }),
@@ -83,6 +83,7 @@ router.get('/', asyncHandler(async (req, res) => {
       .populate('product_id', 'name').lean(),
 
     Issue.countDocuments({ status: { $in: ['open', 'acknowledged'] } }),
+    Task.countDocuments({ status: 'open' }),
 
     Product.aggregate([
       { $match: { active: true } },
@@ -98,6 +99,7 @@ router.get('/', asyncHandler(async (req, res) => {
       pending_approval: pendingRequests,
       customers: customerCount,
       open_issues: openIssues,
+      open_tasks: openTasks,
       stock_value: toRupees(stockValueAgg[0] ? stockValueAgg[0].value : 0),
     },
     today: {
@@ -115,6 +117,21 @@ router.get('/', asyncHandler(async (req, res) => {
     category_mix: categoryMix.map((c) => ({ category: c._id, revenue: toRupees(c.revenue), units: c.units })),
     recent_feedback: recentFeedback,
   });
+}));
+
+/**
+ * The small counts on the sidebar, in one request so the shell polls once.
+ *   approvals: reorders and stock counts waiting on a Manager decision
+ *   issues:    flagged and not yet acknowledged
+ *   tasks:     open tasks given to whoever is signed in
+ */
+router.get('/badges', asyncHandler(async (req, res) => {
+  const [approvals, issues, tasks] = await Promise.all([
+    RestockRequest.countDocuments({ status: 'pending' }),
+    Issue.countDocuments({ status: 'open' }),
+    req.user.role === 'Owner' ? 0 : Task.countDocuments({ assigned_to: req.user.id, status: 'open' }),
+  ]);
+  res.json({ approvals, issues, tasks });
 }));
 
 /** The low-stock list, which is what the Manager actually acts on. */

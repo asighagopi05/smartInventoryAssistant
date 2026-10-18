@@ -12,6 +12,9 @@ import Team from '../pages/Team';
 import Combos from '../pages/Combos';
 import Forecast from '../pages/Forecast';
 import Performance from '../pages/Performance';
+import Issues from '../pages/Issues';
+import Tasks from '../pages/Tasks';
+import Discussion from '../pages/Discussion';
 
 /**
  * The single source of truth for navigation.
@@ -46,6 +49,23 @@ export const ROUTES = [
     hidden: true,
   },
   {
+    path: '/issues', label: 'Issues', icon: 'bi-flag-fill',
+    component: Issues, roles: ['Owner', 'Manager', 'Staff'],
+    accent: 'coral', section: 'Floor',
+    badge: 'issues',
+  },
+  {
+    path: '/tasks', label: 'Tasks', icon: 'bi-check2-square',
+    component: Tasks, roles: ['Owner', 'Manager', 'Staff'],
+    accent: 'teal', section: 'Floor',
+    badge: 'tasks',
+  },
+  {
+    path: '/discussion', label: 'Discussion', icon: 'bi-chat-left-text-fill',
+    component: Discussion, roles: ['Owner', 'Manager', 'Staff'],
+    accent: 'sky', section: 'Floor',
+  },
+  {
     path: '/products', label: 'Products', icon: 'bi-box-seam-fill',
     component: Products, roles: ['Owner', 'Manager', 'Staff'],
     accent: 'sky', section: 'Inventory',
@@ -59,7 +79,7 @@ export const ROUTES = [
     path: '/restock', label: 'Restock requests', icon: 'bi-arrow-repeat',
     component: Restock, roles: ['Owner', 'Manager', 'Staff'],
     accent: 'amber', section: 'Inventory',
-    badge: 'restock',
+    badge: 'approvals',
   },
   {
     path: '/suppliers', label: 'Suppliers', icon: 'bi-truck',
@@ -98,7 +118,7 @@ export const ROUTES = [
   },
 ];
 
-export const SECTION_ORDER = ['Overview', 'Counter', 'Inventory', 'Shop', 'Insights'];
+export const SECTION_ORDER = ['Overview', 'Counter', 'Floor', 'Inventory', 'Shop', 'Insights'];
 
 export const routesForRole = (role) =>
   ROUTES.filter((r) => r.roles.includes(role));

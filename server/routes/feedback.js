@@ -135,25 +135,7 @@ router.get('/', asyncHandler(async (req, res) => {
   });
 }));
 
-/** Discussion board - internal, staff only. */
-router.get('/discussion', asyncHandler(async (_req, res) => {
-  const notes = await Note.find({ type: 'discussion' })
-    .sort({ createdAt: -1 }).limit(100)
-    .populate('author_id', 'name role')
-    .lean();
-  res.json({ notes });
-}));
-
-router.post('/discussion', asyncHandler(async (req, res) => {
-  const note = await Note.create({
-    type: 'discussion',
-    body: req.body.body,
-    author_id: req.user.id,
-    source: 'staff',
-    parent_id: req.body.parentId || null,
-  });
-  res.status(201).json({ note: await note.populate('author_id', 'name role') });
-}));
+// The internal discussion board lives in routes/discussion.js (/api/discussion).
 
 /**
  * QR generation, server-side. The Manager prints these.
