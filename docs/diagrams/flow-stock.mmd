@@ -1,0 +1,25 @@
+%% System flow 1: how stock moves. Every path goes through adjustStock(),
+%% and the threshold check lives inside it.
+flowchart TD
+    SALE["Staff or Manager<br/>completes a sale at the till"] --> ADJ
+    COUNT["Staff or Manager<br/>records a physical count"] --> TOL{"Counted vs system:<br/>within 5% or 3 units,<br/>whichever is larger?"}
+    TOL -- yes --> ADJ
+    TOL -- no --> AREQ["RestockRequest<br/>kind: adjustment, status: pending<br/>counted_stock, difference<br/>stock is NOT changed"]
+    AREQ --> N1(["Notification to the Manager"])
+    AREQ --> DEC{"Manager decides"}
+    DEC -- "Apply" --> ADJ
+    DEC -- "Reject" --> RJ["status: rejected<br/>stock unchanged"]
+    DEC --> N2(["Notification to the person who counted"])
+
+    ADJ["adjustStock()<br/>atomic $inc, refuses to go below 0<br/>writes a StockLog row:<br/>before, change, after, who, why"] --> CHK{"Stock went down and is now<br/>at or below threshold?"}
+    CHK -- no --> DONE(["Done"])
+    CHK -- yes --> OPEN{"Already an open restock<br/>request for this product?<br/>(partial unique index)"}
+    OPEN -- yes --> DONE
+    OPEN -- no --> RREQ["RestockRequest<br/>kind: restock, status: pending<br/>raised_by: null (the server)"]
+    RREQ --> N3(["Notification to the Manager"])
+    RREQ --> APP{"Manager approves?"}
+    APP -- "Reject" --> RJ2["status: rejected"]
+    APP -- "Approve" --> APV["status: approved<br/>forecast recorded for later checking"]
+    APV --> REC["Manager or Staff: Mark received"]
+    REC --> ADJ2["adjustStock(+qty)<br/>StockLog: received"]
+    ADJ2 --> CLOSED["status: received<br/>request closed"]

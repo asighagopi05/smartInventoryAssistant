@@ -15,7 +15,7 @@
 ```bash
 cd server
 npm run seed        # fresh, identical data every time (~10 s)
-npm run verify      # should say 15/15 checks passed
+npm run verify      # should say 20/20 checks passed
 cd ..
 npm run dev         # starts API (port 5000) and screens (port 5173) together
 ```
@@ -91,7 +91,8 @@ Everything runs offline on one laptop. No internet is needed.
 ## PART 3 — The database design (4 minutes)
 
 Our database is called `sia`. It has **10 collections**, which are like tables, plus **one
-internal helper collection**.
+internal helper collection**. *(Since Phase 3 there are 11: `tasks` was added, alongside two ML
+caches, `combocaches` and `predictions`. See `docs/PLAN.md` section 4.)*
 
 | # | Collection | What one document represents | Seeded count |
 |---|---|---|---|
@@ -788,11 +789,9 @@ change the data.)*
 
 We would rather say this clearly ourselves:
 
-- **Not built yet:** the machine-learning part (association rules, i.e. "people who buy X also
-  buy Y", using the Apriori-style method on the same sales data), the sales forecast, the
-  staff-issues screen and the discussion board. The `issues` collection already exists and
-  has data. Only its screen is pending. **Nothing appears in the menu without a working
-  screen behind it.**
+- *(Updated after Phase 3: the ML, the forecast, the issues screen, tasks, the discussion board
+  and the notification centre are now built. The remaining gaps are in `docs/PLAN.md` section 9.)*
+  **Nothing appears in the menu without a working screen behind it.**
 - **Adding or editing products and suppliers** exists in the API (Manager only, with soft delete
   for products), but the forms for it are not built yet.
 - **No multi-document transaction for a sale.** MongoDB supports transactions only on a replica

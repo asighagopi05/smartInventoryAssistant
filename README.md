@@ -73,17 +73,19 @@ it demonstrates the same thing.
 
 ```
 server/    Express + Mongoose API
-  models/      the 10 collections, plus internal ones: counter, saved combos, predictions
+  models/      the 11 collections, plus supporting ones: counter, saved combos, predictions
   routes/      REST endpoints, all role-guarded
   services/    stockService.js — the one place stock ever moves
                forecastService.js — sales series, forecasts, and checking them against real sales
-  seed/        seed.js, verify.js, apitest.js, mldemo.js, and the source data
+  seed/        seed.js, verify.js, apitest.js, mldemo.js, phase3test.js, migrate-phase3.js,
+               docscheck.js, and the source data
 ml/        FastAPI + mlxtend + scikit-learn: combos (Apriori) and the sales forecast
 client/    React + Vite
   src/pages/       one file per screen
   src/config/      navigation.jsx — sidebar AND router come from here
   src/styles/      design tokens and application styles
-docs/      PLAN.md (design) and STUDY-GUIDE.md (how it works + demo script)
+docs/      PLAN.md (project document), SCHEMA.md (generated), diagrams/ (ER, schema, architecture,
+           system flow), STUDY-GUIDE.md, REVIEW-SCRIPT.md, ML-BUILD-LOG.md
 ```
 
 ### Scripts
@@ -91,9 +93,12 @@ docs/      PLAN.md (design) and STUDY-GUIDE.md (how it works + demo script)
 | Command | What it does |
 |---|---|
 | `npm run seed` | Drops and rebuilds the database. Deterministic — identical every run, except that the dates move forward in whole weeks so the history always ends in the past. |
-| `npm run verify` | 15 checks on the data: ledger reconciliation, no duplicate open requests, no customer passwords, every bill adds up. |
+| `npm run verify` | 20 checks on the data: ledger reconciliation, no duplicate open requests, no customer passwords, every bill adds up, adjustments reach the ledger, issue/task/discussion records are consistent. |
 | `npm run apitest` | 36 checks against a running API, walking the plan's verification list. |
 | `npm run ml-demo` | 13 checks of the Phase 2 ML features against a running API, explaining each in plain English. Also works with Python stopped, checking the saved results. |
+| `npm run phase3test` | 69 checks of Phase 3 against a running API: stock adjustments, issues, tasks, discussion, notification centre. Removes the records it creates. |
+| `npm run docscheck` | Checks the ER diagram field by field against the models, and that the generated `docs/SCHEMA.md` is current (`-- --write` regenerates it). |
+| `npm run migrate` | Upgrades a database created before Phase 3. Safe to run twice. |
 | `npm run dev` | Starts with auto-reload. |
 
 ---
@@ -117,14 +122,12 @@ stock levels are generated, because the source has none.
 
 ---
 
-## Not built yet
+## Status
 
-Phase 3: the staff issues screen, staff tasks, the discussion board, the adjustment-approval screen,
-the full notification history and the diagrams. The `issues` collection already exists and is
-populated — only its screen is outstanding.
-
-Phase 2 (the ML) is done: see [`docs/ML-BUILD-LOG.md`](docs/ML-BUILD-LOG.md) for how it was built
-and tested.
+All three phases are built. Phase 2 (the ML) is described in
+[`docs/ML-BUILD-LOG.md`](docs/ML-BUILD-LOG.md). Phase 3 added stock-count approvals, issues, tasks,
+discussion, the notification centre and the diagrams. What is still missing is listed in
+[`docs/PLAN.md`](docs/PLAN.md) section 9.
 
 Nothing appears in the menu that does not have a working screen behind it. That is deliberate: the
 sidebar and the router are generated from the same config, so a dead link is not possible.

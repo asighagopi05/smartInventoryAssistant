@@ -1,0 +1,231 @@
+%% Entity-relationship diagram for the shipped schema (server/models/).
+%% Every field listed here is checked against the Mongoose schemas by
+%% `npm run docscheck`, so this file cannot silently drift from the code.
+%% Money fields are integer paise. createdAt/updatedAt exist on every
+%% collection except counters and predictions and are left out for space.
+erDiagram
+    USER {
+        ObjectId _id PK
+        String name
+        String email UK
+        String password_hash "select false"
+        String role "Owner | Manager | Staff"
+        String phone
+        Boolean active
+        ObjectId created_by FK "User"
+        Date last_login
+    }
+    SUPPLIER {
+        ObjectId _id PK
+        String name
+        String contact_person
+        String phone
+        String email
+        String address
+        String_array categories
+        Boolean active
+    }
+    PRODUCT {
+        ObjectId _id PK
+        String sku UK
+        String name
+        String category
+        String unit "pc | kg | litre | pack"
+        Number price "paise"
+        Number cost "paise"
+        Number stock
+        Number threshold
+        Number reorder_qty
+        ObjectId supplier_id FK
+        Boolean active
+        Number rating_avg "from notes"
+        Number rating_count "from notes"
+    }
+    STOCKLOG {
+        ObjectId _id PK
+        ObjectId product_id FK
+        String entry_type "sale | received | count | damage | return | adjustment"
+        Number quantity_change "signed"
+        Number stock_before
+        Number stock_after
+        String reason
+        String source "billing | manual | restock | seed"
+        ObjectId user_id FK "who is accountable"
+        ObjectId sale_id FK
+        ObjectId restock_request_id FK
+    }
+    RESTOCKREQUEST {
+        ObjectId _id PK
+        ObjectId product_id FK
+        ObjectId supplier_id FK
+        String kind "restock | adjustment"
+        Number qty
+        Number counted_stock "adjustment only"
+        Number difference "adjustment only, signed"
+        String status "pending | approved | rejected | received | applied"
+        String trigger "auto | manual"
+        Number stock_at_request
+        Number threshold_at_request
+        ObjectId raised_by FK "null = the server"
+        ObjectId approved_by FK
+        Date approved_at
+        Date received_at
+        Number received_qty
+        String note
+    }
+    SALE {
+        ObjectId _id PK
+        String bill_no UK
+        Number subtotal "paise"
+        Number discount "paise"
+        Number tax "paise"
+        Number total "paise"
+        String payment_method "cash | card | upi"
+        ObjectId customer_id FK "null = walk-in"
+        String customer_phone "as printed"
+        ObjectId billed_by FK
+    }
+    SALE_ITEM {
+        ObjectId product_id FK
+        String name "snapshot"
+        String sku "snapshot"
+        Number qty
+        Number unit_price "paise, snapshot"
+        Number line_total "paise"
+    }
+    CUSTOMER {
+        ObjectId _id PK
+        String phone UK
+        String name
+        String address
+        String email
+        Date first_seen
+        Date last_seen
+        Number visits
+        Number total_spent "paise"
+        ObjectId created_by FK
+    }
+    NOTE {
+        ObjectId _id PK
+        String type "feedback | discussion"
+        String body
+        ObjectId author_id FK "null = a customer"
+        Number rating "1-5, feedback"
+        ObjectId product_id FK
+        ObjectId sale_id FK "bill QR"
+        String contact_phone
+        ObjectId customer_id FK
+        String source "product_qr | shop_qr | bill_qr | staff"
+        ObjectId parent_id FK "discussion reply"
+    }
+    NOTIFICATION {
+        ObjectId _id PK
+        String type
+        String title
+        String body
+        String for_role "Owner | Manager | Staff"
+        ObjectId for_user_id FK
+        String ref_type
+        ObjectId ref_id "the document that caused it"
+        String link
+        ObjectId_array read_by FK
+    }
+    ISSUE {
+        ObjectId _id PK
+        String title
+        String description
+        ObjectId product_id FK
+        String category "damage | expiry | shelf | pricing | equipment | other"
+        String severity "low | medium | high"
+        String status "open | acknowledged | resolved"
+        ObjectId raised_by FK
+        ObjectId acknowledged_by FK
+        Date acknowledged_at
+        ObjectId resolved_by FK
+        Date resolved_at
+        String resolution_note
+    }
+    TASK {
+        ObjectId _id PK
+        String title
+        String description
+        ObjectId assigned_to FK
+        ObjectId created_by FK
+        ObjectId product_id FK
+        ObjectId issue_id FK
+        Date due_date
+        String status "open | done | cancelled"
+        Date done_at
+        String done_note
+    }
+    COMBOCACHE {
+        String _id PK "latest"
+        Number basket_count
+        Number min_support
+        Number min_confidence
+        Date generated_at
+        ObjectId generated_by FK
+    }
+    COMBO_RULE {
+        String if_bought
+        String also_bought
+        Number support
+        Number confidence
+        Number lift
+        Number bill_count
+        Number if_support
+        Number also_support
+        Number p_value
+        Boolean slow_strong
+        Number score
+    }
+    PREDICTION {
+        ObjectId _id PK
+        ObjectId product_id FK
+        String kind "live | approval | backtest"
+        Date window_start
+        Date window_end
+        Number horizon_days
+        Number predicted_units
+        Number naive_units
+        Number_array daily
+        Date generated_at
+        ObjectId restock_request_id FK
+        Number actual_units
+        Number accuracy
+        Date evaluated_at
+    }
+    COUNTER {
+        String _id PK "bill"
+        Number seq
+    }
+
+    SUPPLIER ||--o{ PRODUCT : supplies
+    SUPPLIER ||--o{ RESTOCKREQUEST : "is asked by"
+    PRODUCT ||--o{ STOCKLOG : "moves in"
+    PRODUCT ||--o{ RESTOCKREQUEST : "needs"
+    PRODUCT ||--o{ NOTE : "is rated in"
+    PRODUCT ||--o{ ISSUE : "is flagged in"
+    PRODUCT ||--o{ TASK : "is the subject of"
+    PRODUCT ||--o{ PREDICTION : "is forecast in"
+    SALE ||--|{ SALE_ITEM : "embeds"
+    PRODUCT ||--o{ SALE_ITEM : "is sold as"
+    SALE ||--o{ STOCKLOG : "causes"
+    SALE ||--o{ NOTE : "is reviewed via bill QR"
+    CUSTOMER ||--o{ SALE : "makes"
+    CUSTOMER ||--o{ NOTE : "leaves"
+    RESTOCKREQUEST ||--o{ STOCKLOG : "is received or applied as"
+    RESTOCKREQUEST ||--o{ PREDICTION : "is checked by"
+    USER ||--o{ USER : "creates"
+    USER ||--o{ SALE : bills
+    USER ||--o{ STOCKLOG : "is accountable for"
+    USER ||--o{ RESTOCKREQUEST : "raises or approves"
+    USER ||--o{ CUSTOMER : "first billed"
+    USER ||--o{ NOTE : writes
+    USER ||--o{ ISSUE : "flags or resolves"
+    USER ||--o{ TASK : "gives or is given"
+    USER ||--o{ NOTIFICATION : "is sent"
+    USER ||--o{ COMBOCACHE : "ran"
+    ISSUE ||--o{ TASK : "leads to"
+    NOTE ||--o{ NOTE : "has replies"
+    COMBOCACHE ||--|{ COMBO_RULE : "embeds"

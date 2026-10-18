@@ -13,7 +13,8 @@
     "apitest": "node seed/apitest.js",
     "ml-demo": "node seed/mldemo.js",
     "migrate": "node seed/migrate-phase3.js",
-    "phase3test": "node seed/phase3test.js"
+    "phase3test": "node seed/phase3test.js",
+    "docscheck": "node seed/docscheck.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -1,0 +1,228 @@
+%% GENERATED from server/models/ by `npm run docscheck -- --write`. Do not edit by hand.
+classDiagram
+    direction LR
+    class User {
+        <<users>>
+        String name (required)
+        String email (required, unique)
+        String password_hash (required)
+        String role (required)
+        String phone
+        Boolean active
+        ObjectId created_by
+        Date last_login
+    }
+    class Supplier {
+        <<suppliers>>
+        String name (required)
+        String contact_person
+        String phone
+        String email
+        String address
+        String_list categories
+        Boolean active
+    }
+    class Product {
+        <<products>>
+        String sku (required, unique)
+        String name (required)
+        String category (required)
+        String unit
+        Number price (required)
+        Number cost
+        Number stock (required)
+        Number threshold (required)
+        Number reorder_qty (required)
+        ObjectId supplier_id (required)
+        Boolean active
+        Number rating_avg
+        Number rating_count
+    }
+    class StockLog {
+        <<stocklogs>>
+        ObjectId product_id (required)
+        String entry_type (required)
+        Number quantity_change (required)
+        Number stock_before (required)
+        Number stock_after (required)
+        String reason
+        String source
+        ObjectId user_id (required)
+        ObjectId sale_id
+        ObjectId restock_request_id
+    }
+    class RestockRequest {
+        <<restockrequests>>
+        ObjectId product_id (required)
+        ObjectId supplier_id (required)
+        Number qty (required)
+        String kind
+        Number counted_stock
+        Number difference
+        String status
+        String trigger
+        Number stock_at_request
+        Number threshold_at_request
+        ObjectId raised_by
+        ObjectId approved_by
+        Date approved_at
+        Date received_at
+        Number received_qty
+        String note
+    }
+    class Sale {
+        <<sales>>
+        String bill_no (required, unique)
+        embedded items
+        ObjectId items_product_id (required)
+        String items_name (required)
+        String items_sku (required)
+        Number items_qty (required)
+        Number items_unit_price (required)
+        Number items_line_total (required)
+        Number subtotal (required)
+        Number discount
+        Number tax
+        Number total (required)
+        String payment_method
+        ObjectId customer_id
+        String customer_phone
+        ObjectId billed_by (required)
+    }
+    class Customer {
+        <<customers>>
+        String phone (required, unique)
+        String name
+        String address
+        String email
+        Date first_seen
+        Date last_seen
+        Number visits
+        Number total_spent
+        ObjectId created_by
+    }
+    class Note {
+        <<notes>>
+        String type (required)
+        String body
+        ObjectId author_id
+        Number rating
+        ObjectId product_id
+        ObjectId sale_id
+        String contact_phone
+        ObjectId customer_id
+        String source
+        ObjectId parent_id
+    }
+    class Notification {
+        <<notifications>>
+        String type (required)
+        String title (required)
+        String body
+        String for_role
+        ObjectId for_user_id
+        String ref_type
+        ObjectId ref_id
+        String link
+        ObjectId_list read_by
+    }
+    class Issue {
+        <<issues>>
+        String title (required)
+        String description
+        ObjectId product_id
+        String category
+        String severity
+        String status
+        ObjectId raised_by (required)
+        ObjectId acknowledged_by
+        Date acknowledged_at
+        ObjectId resolved_by
+        Date resolved_at
+        String resolution_note
+    }
+    class Task {
+        <<tasks>>
+        String title (required)
+        String description
+        ObjectId assigned_to (required)
+        ObjectId created_by (required)
+        ObjectId product_id
+        ObjectId issue_id
+        Date due_date
+        String status
+        Date done_at
+        String done_note
+    }
+    class ComboCache {
+        <<combocaches>>
+        String _id (required)
+        Number basket_count (required)
+        Number min_support (required)
+        Number min_confidence (required)
+        embedded rules
+        String rules_if_bought (required)
+        String rules_also_bought (required)
+        Number rules_support (required)
+        Number rules_confidence (required)
+        Number rules_lift (required)
+        Number rules_bill_count (required)
+        Number rules_if_support (required)
+        Number rules_also_support (required)
+        Number rules_p_value
+        Boolean rules_slow_strong
+        Number rules_score (required)
+        Date generated_at (required)
+        ObjectId generated_by (required)
+    }
+    class Prediction {
+        <<predictions>>
+        ObjectId product_id (required)
+        String kind (required)
+        Date window_start (required)
+        Date window_end (required)
+        Number horizon_days (required)
+        Number predicted_units (required)
+        Number naive_units (required)
+        Number_list daily
+        Date generated_at (required)
+        ObjectId restock_request_id
+        Number actual_units
+        Number accuracy
+        Date evaluated_at
+    }
+    class Counter {
+        <<counters>>
+        String _id (required)
+        Number seq (required)
+    }
+    Product --> Supplier : supplier_id
+    StockLog --> Product : product_id
+    StockLog --> User : user_id
+    StockLog --> Sale : sale_id
+    StockLog --> RestockRequest : restock_request_id
+    RestockRequest --> Product : product_id
+    RestockRequest --> Supplier : supplier_id
+    RestockRequest --> User : raised_by
+    RestockRequest --> User : approved_by
+    Sale --> Product : items_product_id
+    Sale --> Customer : customer_id
+    Sale --> User : billed_by
+    Customer --> User : created_by
+    Note --> User : author_id
+    Note --> Product : product_id
+    Note --> Sale : sale_id
+    Note --> Customer : customer_id
+    Notification --> User : for_user_id
+    Notification --> User : read_by
+    Issue --> Product : product_id
+    Issue --> User : raised_by
+    Issue --> User : acknowledged_by
+    Issue --> User : resolved_by
+    Task --> User : assigned_to
+    Task --> User : created_by
+    Task --> Product : product_id
+    Task --> Issue : issue_id
+    ComboCache --> User : generated_by
+    Prediction --> Product : product_id
+    Prediction --> RestockRequest : restock_request_id

@@ -63,7 +63,8 @@ crossed. **MongoDB** stores documents and enforces the constraints that must nev
 
 ## 3. The database in one line each
 
-Database `sia`, **10 collections plus one internal helper**.
+Database `sia`, **11 collections plus three supporting ones** (the last three rows; `tasks` and the
+two ML caches arrived in Phases 2 and 3).
 
 | Collection | What it stores |
 |---|---|
@@ -71,12 +72,15 @@ Database `sia`, **10 collections plus one internal helper**.
 | `suppliers` | Who each aisle is ordered from. |
 | `products` | The 169 items: price, stock, reorder level, supplier, average rating. |
 | `stocklogs` | Append-only ledger of every stock movement, with before, after and who. |
-| `restockrequests` | Purchase requests, from raised → approved → received. |
+| `restockrequests` | Purchase requests, from raised → approved → received. Also stock counts that were too far off and wait for the Manager (`kind: adjustment`). |
 | `sales` | Bills. Line items embedded; customer linked by id plus the phone as printed. |
 | `customers` | Phone-keyed records. **No password field, ever.** |
 | `notes` | Customer feedback and internal discussion. A null author means it came from a customer. |
 | `notifications` | Written by the events that cause them, never seeded in bulk. |
 | `issues` | Floor problems flagged by Staff. |
+| `tasks` | Work the Manager gives a named person, with a due date. |
+| `combocaches` | *(supporting)* The last combo analysis, so the screen works with Python off. |
+| `predictions` | *(supporting)* Forecasts, later filled in with what actually sold. |
 | `counters` | *(internal)* Supplies gap-free bill numbers atomically. |
 
 ---
@@ -180,7 +184,7 @@ whichever is larger**, raises an approval request instead of applying silently.
 **Why do customers have no accounts?** Because they would never use them. A customer is a record keyed
 by phone, created at the till. There is no password field on the collection and there never will be.
 
-**Why 10 collections and not 8?** An earlier draft tried to force everything into 8, which meant
+**Why 10 collections and not 8?** *(11 since Phase 3 added `tasks`.)* An earlier draft tried to force everything into 8, which meant
 `stocklogs` carrying both stock movements *and* the whole purchase-order lifecycle, with most fields
 empty most of the time — and the staff issues screen had nowhere to live at all. Each document should
 have one shape. The count was never the goal.
@@ -216,7 +220,7 @@ cd server
 npm run seed
 
 # 3. Prove the data is sound - run this in front of them, it takes 2 seconds
-npm run verify          # 15/15 checks
+npm run verify          # 20/20 checks
 
 # 4. Start the two servers, in two terminals
 cd server && npm run dev      # API      → http://localhost:5000
@@ -334,15 +338,16 @@ change**. One thing I have already measured: the good rules in this data sit at 
 the textbook `min_support` of 0.01 returns nothing at all. It needs to be about 0.003.
 
 **"What is not finished?"**
-The ML service, the sales forecast, the staff issues screen and the discussion board. The `issues`
-collection already exists and is seeded — only its screen is outstanding. Nothing appears in the menu
-that does not have a working screen behind it; that was deliberate, because the previous version had a
-menu full of links that led nowhere.
+*(Updated after Phase 3.)* The ML service, forecast, issues screen, tasks, discussion board and
+notification centre are all built now. What is still missing is listed honestly in `docs/PLAN.md`
+section 9: database-level `$jsonSchema` validators, multi-document transactions, and push (rather
+than polled) notifications. Nothing appears in the menu that does not have a working screen behind
+it; that was deliberate, because the previous version had a menu full of links that led nowhere.
 
 **"How do I know the stock numbers are not just made up?"**
 Run `npm run verify`. It reads every product's ledger and checks that the last recorded "stock after"
 equals what the product currently holds, that every row chains into the next, that every bill adds up,
-and that no customer document has a password. 15 checks, and they run against the live database in
+and that no customer document has a password. 20 checks, and they run against the live database in
 front of you.
 
 ---

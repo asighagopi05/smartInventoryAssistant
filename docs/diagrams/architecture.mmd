@@ -1,0 +1,32 @@
+%% Three-tier architecture, plus the optional ML service.
+%% Express is the only process that talks to MongoDB.
+flowchart LR
+    subgraph Clients["Tier 1: presentation (React 19 + Vite, port 5173)"]
+        direction TB
+        SPA["Staff app (signed in)<br/>Owner · Manager · Staff<br/>screens generated from one role config"]
+        PUB["Public feedback page<br/>/feedback, /feedback/:productId,<br/>/feedback?sale=:id<br/>no login, reached by QR"]
+    end
+
+    subgraph API["Tier 2: application (Node.js + Express, port 5000)"]
+        direction TB
+        MW["Middleware<br/>JWT check on every request,<br/>role re-read from the database,<br/>requireRole, rate limit on public writes"]
+        ROUTES["REST routes<br/>auth · products · suppliers · stock · restock<br/>sales · customers · feedback · notifications<br/>issues · tasks · discussion · dashboard<br/>combos · forecast · insights"]
+        SVC["Services<br/>stockService: the one place stock moves<br/>stockRules: threshold and tolerance<br/>forecastService · mlClient"]
+        TIMER["Hourly timer<br/>fills in actual sales<br/>for finished forecasts"]
+        MW --> ROUTES --> SVC
+        TIMER --> SVC
+    end
+
+    subgraph Data["Tier 3: data (MongoDB 8, database sia, port 27017)"]
+        DB[("11 domain collections<br/>users · suppliers · products · stocklogs<br/>restockrequests · sales · customers · notes<br/>notifications · issues · tasks<br/>+ combocaches · predictions · counters")]
+    end
+
+    subgraph ML["ML service (Python FastAPI, port 8000, optional)"]
+        PY["Apriori combos (mlxtend)<br/>+ Fisher exact test<br/>LinearRegression forecast<br/>no database access"]
+    end
+
+    SPA -- "HTTP JSON + JWT" --> MW
+    PUB -- "HTTP JSON, no token" --> MW
+    SVC -- "Mongoose" --> DB
+    ROUTES -- "bills in, rules and forecasts out" --> PY
+    ROUTES -. "saved results, so screens work<br/>with Python switched off" .-> DB

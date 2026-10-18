@@ -1,0 +1,36 @@
+%% System flow 2: feedback, the floor and notifications.
+flowchart TD
+    subgraph Customers["Customers: no account, no login"]
+        QR["Scan a QR<br/>shelf, counter or bill"] --> FB["Rate 1-5, optional comment<br/>and phone"]
+        FB --> NOTEF["Note: type feedback<br/>author_id null<br/>linked to a customer if the phone matches"]
+        NOTEF --> RATE["Product rating_avg / rating_count<br/>recomputed"]
+        NOTEF --> LOW{"Rating 2 or less?"}
+        LOW -- yes --> NB(["Notification: bad review<br/>to the Manager"])
+    end
+
+    subgraph Floor["The floor: Staff and the Manager"]
+        SPOT["Someone spots a problem"] --> ISS["Issue: open<br/>category, severity, product"]
+        ISS --> NI(["Notification: issue raised<br/>to the Manager"])
+        ISS --> ACK["Manager: Acknowledge"]
+        ACK --> TASKQ{"Needs someone to do work?"}
+        TASKQ -- yes --> TASK["Task: open<br/>given to a named person,<br/>due date, linked to the issue"]
+        TASK --> NT(["Notification: task assigned<br/>to that person"])
+        TASK --> TD["Assignee: Mark done, with a note"]
+        TD --> NTD(["Notification: task done<br/>to the Manager"])
+        TASKQ -- no --> RES
+        TD --> RES["Manager: Resolve, with a note"]
+        RES --> NIU(["Notification: issue resolved<br/>to whoever flagged it"])
+        POST["Discussion post"] --> REPLY["Reply<br/>(one level deep)"]
+        REPLY --> NR(["Notification: reply<br/>to the original poster"])
+    end
+
+    subgraph Centre["Notification centre"]
+        BELL["Bell: true unread count,<br/>latest 12"] --> ALL["Notifications screen:<br/>full history, filters,<br/>open / mark read"]
+    end
+
+    NB --> BELL
+    NI --> BELL
+    NT --> BELL
+    NTD --> BELL
+    NIU --> BELL
+    NR --> BELL
