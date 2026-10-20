@@ -1,4 +1,6 @@
 require('dotenv').config({ path: `${__dirname}/.env` });
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -41,6 +43,19 @@ app.use('/api/issues', require('./routes/issues'));
 app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/discussion', require('./routes/discussion'));
 
+/**
+ * The built screens, when there are any (`npm start` builds them).
+ *
+ * Serving them from the API puts the whole app on one port, so a phone needs
+ * one address and the screens can call /api on the same origin. Any non-API
+ * path gets index.html because the client uses BrowserRouter: a QR code that
+ * opens /feedback/<id> directly must still load the app.
+ */
+const clientDist = path.join(__dirname, '..', 'client', 'dist');
+if (fs.existsSync(path.join(clientDist, 'index.html'))) {
+  app.use(express.static(clientDist));
+  app.get(/^(?!\/api(\/|$)).*/, (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
+}
 
 app.use(notFound);
 app.use(errorHandler);

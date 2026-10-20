@@ -5,6 +5,8 @@
   "description": "Smart Inventory Assistant - centralised inventory system for a small supermarket",
   "scripts": {
     "dev": "node dev.js",
+    "start": "node start.js",
+    "build": "npm --prefix client run build",
     "setup": "npm --prefix server install && npm --prefix client install",
     "seed": "npm --prefix server run seed",
     "verify": "npm --prefix server run verify",

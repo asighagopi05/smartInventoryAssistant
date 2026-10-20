@@ -54,10 +54,37 @@ results, so they still work if Python is not running. Only their **Run** buttons
 
 The login screen has one-click buttons for all three.
 
-### Scanning the QR codes from a phone
+### Running it for the shop (deployment)
 
-The codes encode whatever `PUBLIC_BASE_URL` is set to in `server/.env`. A phone cannot open
-`localhost`, so set it to this machine's network address:
+The database stays on this PC, so the app is deployed here and used over the shop's Wi-Fi. No cloud
+and no internet are involved. With MongoDB running and the steps above done once:
+
+```bash
+npm start
+```
+
+This builds the screens, then starts the API (which serves those screens) and the ML service. Everything
+is on **one port, 5000**. It prints two addresses:
+
+```
+On this PC:          http://localhost:5000
+On the shop network: http://192.168.1.7:5000
+```
+
+Any phone, tablet or till on the same Wi-Fi opens the second one, and the QR codes point at it
+automatically. Stop with **Ctrl+C**.
+
+- **Windows Firewall:** the first time, Windows asks whether Node.js may accept connections. Allow
+  it for the network type the Wi-Fi is set to (Private or Public), or other devices cannot connect.
+- **The address changes** if the router gives this PC a new IP. Reserve it in the router, or set
+  `SIA_PUBLIC_URL` before `npm start` to choose the address the QR codes use.
+- **Different port:** set `PORT` before `npm start`, for example `$env:PORT=8080; npm start`.
+
+### Scanning the QR codes from a phone in development
+
+With `npm start` this is automatic. With `npm run dev`, the codes encode whatever `PUBLIC_BASE_URL`
+is set to in `server/.env`. A phone cannot open `localhost`, so set it to this machine's network
+address:
 
 ```
 PUBLIC_BASE_URL=http://192.168.1.7:5173
@@ -100,6 +127,8 @@ docs/      PLAN.md (project document), SCHEMA.md (generated), diagrams/ (ER, sch
 | `npm run docscheck` | Checks the ER diagram field by field against the models, and that the generated `docs/SCHEMA.md` is current (`-- --write` regenerates it). |
 | `npm run migrate` | Upgrades a database created before Phase 3. Safe to run twice. |
 | `npm run dev` | Starts with auto-reload. |
+| `npm start` | Deployment: builds the screens and serves everything on port 5000 to the shop network. |
+| `npm run build` | Builds the screens only, into `client/dist`. |
 
 ---
 
