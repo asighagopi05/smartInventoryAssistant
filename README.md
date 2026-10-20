@@ -21,9 +21,10 @@ fonts and icons are local files.
 starts on boot).
 
 ```bash
-# 1. Install
+# 1. Install, and create server/.env  (then put a random string after JWT_SECRET= in it)
 cd server && npm install
 cd ../client && npm install
+cd .. && copy server\.env.example server\.env
 
 # 2. Load the data  (~10 seconds, prints the demo logins when it finishes)
 cd ../server && npm run seed
@@ -55,6 +56,8 @@ results, so they still work if Python is not running. Only their **Run** buttons
 The login screen has one-click buttons for all three.
 
 ### Running it for the shop (deployment)
+
+**Setting it up on a new PC?** Follow [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), step by step.
 
 The database stays on this PC, so the app is deployed here and used over the shop's Wi-Fi. No cloud
 and no internet are involved. With MongoDB running and the steps above done once:

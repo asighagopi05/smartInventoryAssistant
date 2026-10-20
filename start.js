@@ -31,8 +31,9 @@ function lanAddress() {
 
 // 1. Build the screens. VITE_API_URL=/api because the API serves them from the same origin.
 console.log('[build] building the screens...');
+// cwd is pinned so `node path/to/start.js` from any folder runs THIS copy, not one in the current folder.
 const build = spawnSync('npm --prefix client run build', {
-  stdio: 'inherit', shell: true, env: { ...process.env, VITE_API_URL: '/api' },
+  cwd: __dirname, stdio: 'inherit', shell: true, env: { ...process.env, VITE_API_URL: '/api' },
 });
 if (build.status !== 0) {
   console.error('[build] the client build failed; nothing was started');
@@ -48,7 +49,7 @@ if (!ip) console.log('[start] no network address found; QR codes will only work 
 const env = { ...process.env, NODE_ENV: 'production', PORT, PUBLIC_BASE_URL: publicUrl };
 
 const procs = [];
-const api = spawn('npm --prefix server start', { stdio: 'inherit', shell: true, env });
+const api = spawn('npm --prefix server start', { cwd: __dirname, stdio: 'inherit', shell: true, env });
 api.on('exit', (code) => {
   console.log(`[api] exited with code ${code}`);
   procs.forEach((p) => p !== api && stop(p));
