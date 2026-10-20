@@ -6,7 +6,8 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "nodemon index.js",
+    "dev": "node --watch --watch-preserve-output index.js",
+    "dev:nodemon": "nodemon index.js",
     "start": "node index.js",
     "seed": "node seed/seed.js",
     "verify": "node seed/verify.js",

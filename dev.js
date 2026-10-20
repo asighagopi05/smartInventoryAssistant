@@ -1,7 +1,21 @@
 // Starts the API server, the Vite client and the ML service together: `npm run dev`
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+
+/**
+ * Stop a child AND everything it started. With shell: true the child is a
+ * cmd.exe wrapper on Windows, so child.kill() ends only the wrapper and leaves
+ * Vite, the API and uvicorn running as orphans that keep their ports.
+ */
+function stop(p) {
+  if (p.exitCode !== null || !p.pid) return;
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(p.pid), '/T', '/F'], { stdio: 'ignore' });
+  } else {
+    p.kill();
+  }
+}
 
 const procs = [
   ['server', 'server'],
@@ -10,7 +24,7 @@ const procs = [
   const p = spawn(`npm --prefix ${dir} run dev`, { stdio: 'inherit', shell: true });
   p.on('exit', (code) => {
     console.log(`[${name}] exited with code ${code}`);
-    procs.forEach((other) => other !== p && other.kill());
+    procs.forEach((other) => other !== p && stop(other));
     process.exit(code ?? 0);
   });
   return p;
@@ -29,4 +43,4 @@ if (fs.existsSync(venvPython)) {
   console.log('[ml] ml/venv not found, skipping the ML service (see ml/README.md)');
 }
 
-process.on('SIGINT', () => procs.forEach((p) => p.kill()));
+process.on('SIGINT', () => procs.forEach(stop));
