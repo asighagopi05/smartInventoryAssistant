@@ -119,9 +119,9 @@ a:hover { color: var(--brand); }
   margin-left: auto;
   background: var(--coral);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: var(--weight-bold);
-  min-width: 24px; height: 24px;
+  min-width: 26px; height: 26px;
   border-radius: var(--radius-pill);
   display: grid; place-items: center;
   padding: 0 6px;
@@ -178,11 +178,11 @@ a:hover { color: var(--brand); }
 .icon-btn:hover { background: var(--ink-100); color: var(--ink-900); }
 
 .dot-badge {
-  position: absolute; top: -2px; right: -4px;
-  min-width: 20px; height: 20px; padding: 0 5px;
+  position: absolute; top: -4px; right: -6px;
+  min-width: 23px; height: 23px; padding: 0 5px;
   border-radius: var(--radius-pill);
   background: var(--coral); color: #fff;
-  font-size: 0.75rem; font-weight: var(--weight-bold);
+  font-size: 0.875rem; font-weight: var(--weight-bold);
   display: grid; place-items: center;
   border: 2px solid var(--paper);
 }
@@ -490,7 +490,7 @@ a:hover { color: var(--brand); }
 }
 .demo-login-row:last-child { border-bottom: none; }
 .demo-login-row:hover { background: var(--ink-50); }
-.demo-login-row .user-avatar { width: 32px; height: 32px; font-size: 0.8125rem; }
+.demo-login-row .user-avatar { width: 34px; height: 34px; font-size: 0.875rem; }
 
 /* ==========================================================================
    Billing / till

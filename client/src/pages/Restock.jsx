@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { Card, StatusChip, Loading, ErrorNote, EmptyState, StatTile } from '../components/ui';
 import { api, longDate } from '../api/client';
@@ -163,10 +163,10 @@ function AdjustmentQueue({ onChanged }) {
   const [error, setError] = useState(null);
   const [busyId, setBusyId] = useState(null);
 
-  const load = () => api.get(`/restock?kind=adjustment&status=${view}&limit=100`)
+  const load = useCallback(() => api.get(`/restock?kind=adjustment&status=${view}&limit=100`)
     .then((d) => { setData(d); setError(null); })
-    .catch(setError);
-  useEffect(() => { load(); }, [view]);
+    .catch(setError), [view]);
+  useEffect(() => { load(); }, [load]);
 
   const decide = async (id, approve) => {
     setBusyId(id); setError(null);

@@ -160,10 +160,10 @@ async function main() {
     weeks.length > 0 && weeks.every((w) => w.actual_units > 0 && w.model_accuracy != null),
     `${weeks.length} past weeks`);
   say('Each past week was hidden, predicted from the weeks before it, then compared:');
-  weeks.forEach((w) => say(`week of ${w.window_start.slice(0, 10)}: sold ${w.actual_units}, model said ${w.predicted_units} (${pct(w.model_accuracy)}), simple average said ${w.naive_units} (${pct(w.naive_accuracy)})`));
+  weeks.forEach((w) => say(`week of ${w.window_start.slice(0, 10)}: sold ${w.actual_units}, model said ${w.predicted_units} (${pct(w.model_accuracy)}), 4-week average said ${w.naive_units} (${pct(w.naive_accuracy)})`));
   if (weeks.length) {
     const { model_accuracy: m, naive_accuracy: n } = fc.body.backtest;
-    check('The model is at least as accurate as a simple average', m >= n, `model ${pct(m)} vs average ${pct(n)}`);
+    check('The model is at least as accurate as the 4-week average', m >= n, `model ${pct(m)} vs 4-week average ${pct(n)}`);
   }
   const risk = (fc.body?.products || []).filter((p) => p.runs_out);
   say(`${risk.length} products will run out in the next 7 days; the first three:`);

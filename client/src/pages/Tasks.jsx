@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Card, Chip, StatTile, Loading, ErrorNote, EmptyState } from '../components/ui';
@@ -29,10 +29,10 @@ export default function Tasks() {
 
   const isManager = isRole('Manager');
 
-  const load = () => api.get(`/tasks?status=${status}${assignee ? `&assignee=${assignee}` : ''}`)
+  const load = useCallback(() => api.get(`/tasks?status=${status}${assignee ? `&assignee=${assignee}` : ''}`)
     .then((d) => { setData(d); setError(null); })
-    .catch(setError);
-  useEffect(() => { load(); }, [status, assignee]);
+    .catch(setError), [status, assignee]);
+  useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (isManager) api.get('/tasks/assignees').then((d) => setPeople(d.users)).catch(setError);
   }, [isManager]);

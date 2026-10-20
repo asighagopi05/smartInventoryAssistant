@@ -99,7 +99,7 @@ export function Loading({ rows = 5 }) {
   );
 }
 
-export function Stars({ value = 0, size = '0.85rem' }) {
+export function Stars({ value = 0, size = '1rem' }) {
   return (
     <span className="rating-inline" style={{ fontSize: size }}>
       {[1, 2, 3, 4, 5].map((n) => (

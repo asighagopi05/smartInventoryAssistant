@@ -241,12 +241,19 @@ filtered by group and by unread. A person can only mark as read what was address
 Covered step by step, with every measurement, in `docs/ML-BUILD-LOG.md`. In short:
 
 - **Combos:** Apriori over every bill (minimum support 0.003, minimum confidence 0.2). A rule is kept
-  only if **Fisher's exact test gives p < 0.01**; on a 70/30 time split, kept rules held up on later
-  bills 96.8% of the time. Ranked to favour a slow seller paired with a strong one.
+  only if **Fisher's exact test gives p < 0.01**. Tested by mining the first 70% of bills and checking
+  the last 30%: 96.8% of kept rules still showed the pair together more often than chance (lift above
+  1), against 72.1% of the rules the test rejected, with predicted confidence off by about 5 points.
+  That measures the method on unseen bills; the bill dates are generated, so it says nothing about
+  seasons. Ranked to favour a slow seller paired with a strong one.
 - **Forecast:** a weekday shape learned with LinearRegression from whole-shop sales, scaled to each
-  product's average. Weekly accuracy over three hidden backtest weeks is 81.6%, against 80.9% for a
-  simple average; an "oracle" ceiling on this data is 82.0%. Forecasts made at approval are later
-  filled in with actual sales by an hourly timer.
+  product's average. On three hidden backtest weeks, weekly accuracy per product is **81.6%**, against
+  80.9% for the 4-week average. That edge is **not statistically significant** (p = 0.12), and the
+  4-week average won one of the three weeks. Because a week holds each weekday once, the weekly figure
+  equals a plain all-history average (also 81.6%). The regression earns its place on the **daily**
+  split: 55.5% per product per day, against 51.3% for a flat average. An oracle told each product's
+  true average scores 83.1% on the same weeks. Forecasts made at approval are later filled in with
+  actual sales by an hourly timer.
 - **Performance:** sales combined with QR ratings to separate delisting candidates from pairing
   problems.
 
@@ -314,8 +321,10 @@ Demo logins (printed by the seed): `owner@sia.local / Owner@123`, `manager@sia.l
   throwaway products, so today's revenue on the dashboard includes test bills. `phase3test` removes
   its issues, tasks, posts and alerts afterwards. Run `npm run seed` before a demo for clean figures.
 - **Notifications are polled** every 15–20 seconds rather than pushed.
-- **The forecast's gain over a simple average is small** (0.7 points). That is shown honestly on screen.
-  `ML-BUILD-LOG.md` section J shows it is within 2 points of the best any model could do on this data.
+- **The weekly forecast is no better than a plain average.** Its 0.7-point lead over the 4-week
+  average is not statistically significant, and on weekly totals it equals the all-history average.
+  It is 1.5 points below an oracle that knows each product's true average. `ML-BUILD-LOG.md`
+  section K has the measurements.
 
 ## 10. Build history
 

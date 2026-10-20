@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Card, Loading, ErrorNote, EmptyState } from '../components/ui';
@@ -20,12 +20,19 @@ export default function Notifications() {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const query = (after) => `/notifications?limit=30${onlyUnread ? '&unread=1' : ''}${group ? `&group=${group}` : ''}${after ? `&after=${encodeURIComponent(after)}` : ''}`;
+  const query = useCallback(
+    (after) => `/notifications?limit=30${onlyUnread ? '&unread=1' : ''}${group ? `&group=${group}` : ''}${after ? `&after=${encodeURIComponent(after)}` : ''}`,
+    [onlyUnread, group]
+  );
 
-  const load = () => api.get(query())
+  const load = useCallback(() => api.get(query())
     .then((d) => { setRows(d.notifications); setUnread(d.unread); setNext(d.next); setError(null); })
-    .catch(setError);
-  useEffect(() => { setRows(null); load(); }, [onlyUnread, group]);
+    .catch(setError), [query]);
+  useEffect(() => { load(); }, [load]);
+
+  // Changing a filter shows the loading state until the new page arrives.
+  const changeGroup = (v) => { setRows(null); setGroup(v); };
+  const changeUnread = (v) => { setRows(null); setOnlyUnread(v); };
 
   const more = async () => {
     setBusy(true);
@@ -72,12 +79,12 @@ export default function Notifications() {
         actions={(
           <div className="d-flex flex-wrap align-items-center gap-2">
             {GROUPS.map(([v, label]) => (
-              <button key={v || 'all'} className={`btn btn-sm ${group === v ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setGroup(v)}>
+              <button key={v || 'all'} className={`btn btn-sm ${group === v ? 'btn-primary' : 'btn-ghost'}`} onClick={() => changeGroup(v)}>
                 {label}
               </button>
             ))}
             <label className="check-pill">
-              <input type="checkbox" checked={onlyUnread} onChange={(e) => setOnlyUnread(e.target.checked)} />
+              <input type="checkbox" checked={onlyUnread} onChange={(e) => changeUnread(e.target.checked)} />
               Unread only
             </label>
           </div>

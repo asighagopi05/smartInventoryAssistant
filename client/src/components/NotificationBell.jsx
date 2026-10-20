@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api, longDate } from '../api/client';
 import { toneFor, NOTIFICATIONS_CHANGED } from './notificationMeta';
 
 export default function NotificationBell() {
-  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
@@ -27,8 +26,6 @@ export default function NotificationBell() {
     return () => { clearInterval(t); window.removeEventListener(NOTIFICATIONS_CHANGED, load); };
   }, []);
 
-  // The notification centre marks things read; refresh the count on arrival.
-  useEffect(() => { setOpen(false); load(); }, [location.pathname]);
 
   useEffect(() => {
     const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };

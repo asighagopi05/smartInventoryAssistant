@@ -14,7 +14,7 @@ const GROUP_STYLE = {
   unrated: { tone: 'sky', chip: 'neutral', color: '#9aa3b5', icon: 'bi-question-circle' },
 };
 const ORDER = ['star', 'fix', 'pair', 'delist', 'unrated'];
-const AXIS = { tick: { fontSize: 13, fill: 'var(--ink-400)' }, axisLine: false, tickLine: false };
+const AXIS = { tick: { fontSize: 14, fill: 'var(--ink-400)' }, axisLine: false, tickLine: false };
 
 function PointTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;

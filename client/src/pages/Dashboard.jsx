@@ -129,11 +129,11 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--ink-100)" vertical={false} />
                   <XAxis
                     dataKey="date" tickFormatter={shortDate}
-                    tick={{ fontSize: 13, fill: 'var(--ink-400)' }}
+                    tick={{ fontSize: 14, fill: 'var(--ink-400)' }}
                     axisLine={false} tickLine={false} minTickGap={24}
                   />
                   <YAxis
-                    tick={{ fontSize: 13, fill: 'var(--ink-400)' }}
+                    tick={{ fontSize: 14, fill: 'var(--ink-400)' }}
                     axisLine={false} tickLine={false}
                     tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
                   />
@@ -191,10 +191,10 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={top} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--ink-100)" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 13, fill: 'var(--ink-400)' }} axisLine={false} tickLine={false} />
+                  <XAxis type="number" tick={{ fontSize: 14, fill: 'var(--ink-400)' }} axisLine={false} tickLine={false} />
                   <YAxis
                     type="category" dataKey="name" width={150}
-                    tick={{ fontSize: 13, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false}
+                    tick={{ fontSize: 14, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false}
                     tickFormatter={(v) => (v.length > 22 ? `${v.slice(0, 21)}…` : v)}
                   />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--ink-50)' }} />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Card, Chip, StatusChip, StatTile, Loading, ErrorNote, EmptyState } from '../components/ui';
@@ -29,10 +29,10 @@ export default function Issues() {
   const [formOpen, setFormOpen] = useState(false);
   const [flash, setFlash] = useState(null);
 
-  const load = () => api.get(`/issues?status=${status}${mine ? '&mine=1' : ''}`)
+  const load = useCallback(() => api.get(`/issues?status=${status}${mine ? '&mine=1' : ''}`)
     .then((d) => { setData(d); setError(null); })
-    .catch(setError);
-  useEffect(() => { load(); }, [status, mine]);
+    .catch(setError), [status, mine]);
+  useEffect(() => { load(); }, [load]);
 
   const counts = data?.counts || {};
   const canFlag = isRole('Manager', 'Staff');

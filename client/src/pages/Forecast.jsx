@@ -7,7 +7,7 @@ import { Card, Chip, StatTile, Loading, ErrorNote, EmptyState, CategoryChip, Sta
 import { api, longDate, shortDate } from '../api/client';
 
 const pct = (n) => (n == null ? '—' : `${(n * 100).toFixed(1)}%`);
-const AXIS = { tick: { fontSize: 13, fill: 'var(--ink-400)' }, axisLine: false, tickLine: false };
+const AXIS = { tick: { fontSize: 14, fill: 'var(--ink-400)' }, axisLine: false, tickLine: false };
 
 /** Daily sales for the last 8 weeks, then the model's next 7 days. Remounted per product via `key`. */
 function ProductChart({ productId }) {
@@ -106,7 +106,7 @@ export default function Forecast() {
     week: shortDate(w.window_start),
     Actual: w.actual_units,
     Model: w.predicted_units,
-    'Simple average': w.naive_units,
+    '4-week average': w.naive_units,
   }));
 
   return layout(
@@ -125,7 +125,7 @@ export default function Forecast() {
         <StatTile
           tone="sage" icon="bi-bullseye" label="Model accuracy"
           value={pct(data.backtest.model_accuracy)}
-          foot={`Simple average: ${pct(data.backtest.naive_accuracy)}`}
+          foot={`4-week average: ${pct(data.backtest.naive_accuracy)}`}
         />
       </div>
 
@@ -145,7 +145,7 @@ export default function Forecast() {
                   <Legend wrapperStyle={{ fontSize: 14 }} />
                   <Bar dataKey="Actual" fill="#626c82" radius={[3, 3, 0, 0]} />
                   <Bar dataKey="Model" fill="#6b7bd6" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="Simple average" fill="#e0a458" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="4-week average" fill="#e0a458" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

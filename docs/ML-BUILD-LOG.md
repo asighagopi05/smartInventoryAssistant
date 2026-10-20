@@ -18,6 +18,7 @@ Built 10–11 Oct 2026. To see it all working yourself, run `npm run dev` and th
 | H. Testing | all | ✅ 13/13 |
 | I. A bug the tests caught | 2.5 | ✅ fixed |
 | J. Improving accuracy | 2.2, 2.5 | ✅ |
+| K. Correcting the accuracy claims | 2.2, 2.5 | ✅ |
 
 ---
 
@@ -362,30 +363,79 @@ DAILY accuracy                       per product/day   whole shop/day
 - **For a week's total, every sensible method scores about 80%.** A 7-day week contains each weekday
   exactly once, so the weekday pattern cannot change a weekly total. The old model was, in effect, an
   average over all history, and it tied with exactly that.
-- **The ceiling is 82.0%.** An "oracle" that knows each product's true long-run average, which no
-  real model could know, scores only 82.0%. The rest is randomness: which baskets fall in which week.
-  So the model was already within 1.7 points of the best possible.
+- **An "oracle" scores 82.0% over these 8 weeks.** It is told each product's true long-run average,
+  which no real model could know. The rest is randomness: which baskets fall in which week. So the
+  model (80.3% over the same 8 weeks) was 1.7 points below it. *(Corrected 20 Oct: this is a
+  yardstick, not a proven ceiling for every possible model. On the app's own 3 weeks the oracle
+  scores 83.1%, not 82.0%; see section K.)*
 - **Daily accuracy could improve.** Fitting a weekday shape per product meant learning it from about
   13 days per weekday, mostly noise for a product that sells a unit a day.
 
 **Decision:** LinearRegression now learns the weekday shape **once, from the whole shop's sales**,
 and each product's forecast is its own average × that shape. Day accuracy per product goes from
 53.2% to **54.9%**; week totals are unchanged at 81.6% (last 3 weeks), still ahead of the 4-week
-average at 80.9%.
+average at 80.9%. *(Note, 20 Oct: a full week contains each weekday once, so the weekly forecast is
+now exactly the product's all-history average; LinearRegression only shapes the days. See section K.)*
 
 > **For the review:** the honest answer to "can it be more accurate?" is that the weekly forecast is
-> within 2 points of the mathematical best for this data. Real shop data would have things this seed
-> lacks, such as festivals, price changes and a real trend, and those are what a better model could use.
+> 1.5 points below an oracle that knows each product's true average (81.6% against 83.1% on the same
+> 3 weeks). Real shop data would have things this seed lacks, such as festivals, price changes and a
+> real trend, and those are what a better model could use. *(Corrected 20 Oct; the earlier wording,
+> "within 2 points of the mathematical best", overstated it.)*
 
 **After the change:** `npm run ml-demo` 13/13, client build ✓.
 
 ---
 
+## K. Correcting the accuracy claims (20 Oct 2026)
+
+**Why:** asked "what is the accuracy now?", the first answer overstated several things. Each was
+re-measured on the reseeded database (9,834 bills) and is corrected here and in `docs/PLAN.md`.
+
+```
+backtest, 3 hidden weeks x 169 products (from the predictions collection)
+week of 24 Sep   model 78.2%   4-week average 79.1%   <- the model LOST this week
+week of 1 Oct    model 82.5%   4-week average 81.2%
+week of 8 Oct    model 83.7%   4-week average 82.3%
+overall          model 81.6%   4-week average 80.9%
+product-weeks where the model was closer: 261, the 4-week average: 226, tie: 20
+sign test on those 487: p = 0.12
+
+same 3 weeks, fc_experiment.py / fc_daily.py
+naive: all history avg (weekly)        81.6%
+oracle: true long-run avg (weekly)     83.1%
+daily, per product:   pooled model 55.5%   flat 28-day avg 51.3%
+daily, whole shop:    pooled model 89.1%   flat 28-day avg 78.5%
+
+combo_holdout.py, rerun
+rules kept by Fisher p < 0.01   317   hold up in later bills 96.8%   confidence error 5.0 pts
+rules rejected by it             86   hold up in later bills 72.1%
+```
+
+**Corrections:**
+1. **The weekly forecast is the product's all-history average.** A week holds each weekday once, so
+   the learned weekday shape sums out. The plain all-history average scores the same 81.6%.
+   LinearRegression earns its place on the **daily** split (55.5% vs 51.3% per product per day).
+2. **The edge over the 4-week average (0.7 points) is not statistically significant** (p = 0.12),
+   and the 4-week average won one of the three weeks.
+3. **The "ceiling" was compared on the wrong window.** 82.0% was over 8 weeks; over the app's 3
+   weeks the oracle scores 83.1%. It is also a yardstick, not a proof that no model could do better.
+4. **The combo figure is for the method, not for the app's 296 combos.** It is measured on rules
+   mined from the first 70% of bills (317 of them) and checked on the last 30%. "Holds up" is a low
+   bar: the pair still appears together more often than chance (lift above 1) in those bills.
+   Predicted confidence was off by 5 points on average. The bills' dates are generated by the seed,
+   so this shows the rules generalise to unseen bills, not that they stay true across seasons.
+5. The screen and `npm run ml-demo` said "simple average" for what is the **4-week** average. Both
+   now say "4-week average".
+
+---
+
 ## Known limits
 
-- **The forecast's gain over a simple average is small** (0.7 points overall). It is reported
-  honestly on the screen next to the baseline rather than hidden. Section J shows why: it is within
-  2 points of the best any model could do on this data.
+- **The forecast's gain over the 4-week average is small** (0.7 points overall) and not
+  statistically significant (p = 0.12); it lost one of the three test weeks. For weekly totals it
+  is exactly the all-history average. It is reported on the screen next to the baseline rather
+  than hidden. Section K has the numbers.
 - **52 products show as running out this week.** That reflects the seeded stock levels; most
   already have a restock request open, and the screen shows which don't.
 - **Some combos are based on about 30 bills.** Each one now passes a 1-in-100 coincidence test, and
